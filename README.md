@@ -5,7 +5,7 @@ KafkaOffsetTool a lightweight Tool for Kafka Migration Operation and Maintenance
 #### Development environment installation
 ```
 cd ${PROJECT_HOME}
-go run pkg/main.go -c resources/etc/umc-agent.yml
+go run pkg/kafka_offset_tool.go --brokers localhost:9092
 ```
 
 #### Production environment installation
