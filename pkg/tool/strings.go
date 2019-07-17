@@ -15,7 +15,11 @@
  */
 package tool
 
-import "strings"
+import (
+	"fmt"
+	"regexp"
+	"strings"
+)
 
 // Check whether the string contains
 func StringsContains(array []string, val string) bool {
@@ -30,4 +34,13 @@ func StringsContains(array []string, val string) bool {
 // Is empty
 func IsEmpty(str string) bool {
 	return str == "" || len(str) <= 0
+}
+
+// Match.
+func Match(regex string, value string) bool {
+	match, err := regexp.Match(regex, []byte(value))
+	if err != nil {
+		panic(fmt.Sprintf("Invalid regular expression for %s", regex))
+	}
+	return match
 }

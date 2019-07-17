@@ -22,6 +22,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -68,134 +69,131 @@ func main() {
 	// Init configuration.
 	config := sarama.NewConfig()
 	config.ClientID = fmt.Sprintf("kafkaOffsetTool-%d", rand.Int())
-	var kafkaVer, e1 = sarama.ParseKafkaVersion(opts.kafkaVersion)
-	if e1 != nil {
-		panic(e1)
+	if kafkaVer, e1 := sarama.ParseKafkaVersion(opts.kafkaVersion); e1 == nil {
+		config.Version = kafkaVer
+	} else {
+		log.Panicf("Unrecognizable kafka version. %s", e1)
 	}
-	config.Version = kafkaVer
 
 	// Create kafka client.
 	var client, e2 = sarama.NewClient(strings.Split(opts.brokers, ","), config)
 	if e2 != nil {
-		panic(e2)
+		log.Panicf("Unable connect kafka brokers. %s", e2)
 	}
+	defer client.Close()
 
-	// ------- Get topic partition offsets. ------------
+	// Get topic partition offset of groups.
+	var groupTopicPartOffsets = getGroupTopicPartitionOffsets(client)
+	fmt.Print(groupTopicPartOffsets)
+}
+
+// Get topic partitions offsets of groups.
+func getGroupTopicPartitionOffsets(client sarama.Client) map[string]map[string]map[int32]map[string]string {
+	// Get partition offsets of topics.
 	var topicPartOffsets = getTopicPartitionOffsets(client)
 
-	// ------- Kafka group offset info. ----------------
-	if len(client.Brokers()) > 0 {
-		for _, broker := range client.Brokers() {
-			if err := broker.Open(client.Config()); err != nil && err != sarama.ErrAlreadyConnected {
-				log.Printf("Cannot connect to brokerID: %d, %s", broker.ID(), err)
-				panic(err)
-			}
-			// Get groupIds.
-			groups, err := broker.ListGroups(&sarama.ListGroupsRequest{})
-			if err != nil {
-				log.Printf("Cannot get kafka groups. %s", err)
-				panic(err)
-			}
+	// Get group offsets info.
+	groupTopicPartOffsetsInfo := make(map[string]map[string]map[int32]map[string]string)
+	if len(client.Brokers()) <= 0 {
+		log.Panicf("Cannot get topic group information, no valid broker.")
+	}
 
-			groupIds := make([]string, 0)
-			for groupId := range groups.Groups {
-				groupIds = append(groupIds, groupId)
-			}
-			// Get groups describe.
-			describeGroups, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: groupIds})
-			if err != nil {
-				log.Panicf("Cannot get describe groupId: %s, %s", groupIds, err)
-			}
-			// Get groups offset info.
-			for _, group := range describeGroups.Groups {
-				offsetFetchRequest := sarama.OffsetFetchRequest{ConsumerGroup: group.GroupId, Version: 1}
-				for topic, partitions := range topicPartOffsets {
-					for partition := range partitions {
-						offsetFetchRequest.AddPartition(topic, partition)
-					}
+	for _, broker := range client.Brokers() {
+		if err := broker.Open(client.Config()); err != nil && err != sarama.ErrAlreadyConnected {
+			log.Panicf("Cannot connect to brokerID: %d, %s", broker.ID(), err)
+		}
+
+		// Get groupIds.
+		groups, err := broker.ListGroups(&sarama.ListGroupsRequest{})
+		if err != nil {
+			log.Panicf("Cannot get kafka groups. %s", err)
+		}
+		groupIds := make([]string, 0)
+		for groupId := range groups.Groups {
+			groupIds = append(groupIds, groupId)
+		}
+
+		// Get groups describe.
+		describeGroups, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: groupIds})
+		if err != nil {
+			log.Panicf("Cannot get describe groupId: %s, %s", groupIds, err)
+		}
+		// Get group offsets by topic and partition.
+		for _, group := range describeGroups.Groups {
+			// Group consumer by topic and partition all.
+			offsetFetchRequest := sarama.OffsetFetchRequest{ConsumerGroup: group.GroupId, Version: 1}
+			for topic, partitions := range topicPartOffsets {
+				for partition := range partitions {
+					offsetFetchRequest.AddPartition(topic, partition)
 				}
+			}
 
-				offsetFetchResponse, err := broker.FetchOffset(&offsetFetchRequest)
-				if err != nil {
-					log.Panicf("Cannot get offset of group: %s, %s", group.GroupId, err)
-				}
-				for topic, partitions := range offsetFetchResponse.Blocks {
-					// If the topic is not consumed by that consumer group, skip it
-					topicConsumed := false
-					for _, offsetFetchResponseBlock := range partitions {
-						// Kafka will return -1 if there is no offset associated with a topic-partition under that consumer group
-						if offsetFetchResponseBlock.Offset != -1 {
-							topicConsumed = true
-							break
-						}
+			// Fetch offset all of group.
+			offsetFetchResponse, err := broker.FetchOffset(&offsetFetchRequest)
+			if err != nil {
+				log.Panicf("Cannot get offset of group: %s, %s", group.GroupId, err)
+			}
+			for topic, partitions := range offsetFetchResponse.Blocks {
+				for partition, offsetFetchResponseBlock := range partitions {
+					err := offsetFetchResponseBlock.Err
+					if err != sarama.ErrNoError {
+						log.Printf("Error for partition: %d, %s", partition, err)
+						continue
 					}
-					if topicConsumed {
-						var currentOffsetSum int64
-						var lagSum int64
-						for partition, offsetFetchResponseBlock := range partitions {
-							err := offsetFetchResponseBlock.Err
-							if err != sarama.ErrNoError {
-								log.Printf("Error for partition: %d, %s", partition, err)
-								continue
-							}
-							currentOffset := offsetFetchResponseBlock.Offset
-							currentOffsetSum += currentOffset
-							// currentOffset <= topic,groupId,partition
+					// Current group offset info.
+					groupTopicPartOffsetsInfo[group.GroupId][topic][partition]["currentOffset"] = string(offsetFetchResponseBlock.Offset)
+					// fmt.Print(offsetFetchResponseBlock.Offset) // lag <=> groupId,topic,partition
 
-							if offset, ok := topicPartOffsets[topic][partition]; ok {
-								// If the topic is consumed by that consumer group, but no offset associated with the partition
-								// forcing lag to -1 to be able to alert on that
-								var lag int64
-								if offsetFetchResponseBlock.Offset == -1 {
-									lag = -1
-								} else {
-									lag = offset - offsetFetchResponseBlock.Offset
-									lagSum += lag
-								}
-								// lag <= topic,groupId,partition
-							} else {
-								log.Printf("No offset of topic: %s, partition: %d, %s", topic, partition, err)
-							}
+					// Lag offset info.
+					if offset, ok := topicPartOffsets[topic][partition]; ok {
+						// If the topic is consumed by that consumer group, but no offsetInfo associated with the partition
+						// forcing lag to -1 to be able to alert on that
+						var lag int64
+						if offsetFetchResponseBlock.Offset == -1 {
+							lag = -1
+						} else {
+							_currentOffset, _ := strconv.ParseInt(offset["currentOffset"], 10, 64)
+							lag = _currentOffset - offsetFetchResponseBlock.Offset
 						}
-
-						// currentOffsetSum <= topic,groupId,partition
-						// lagSum <= topic,groupId,partition
+						// fmt.Print(lag) // lag <=> groupId,topic,partition
+						groupTopicPartOffsetsInfo[group.GroupId][topic][partition]["lag"] = string(lag)
+					} else {
+						log.Printf("No offsetInfo of topic: %s, partition: %d, %s", topic, partition, err)
 					}
 				}
 			}
 		}
-	} else {
-		log.Panicf("Cannot get topic group information, no valid broker.")
 	}
+	return groupTopicPartOffsetsInfo
 }
 
-// Get topic partitions offset.
-func getTopicPartitionOffsets(client sarama.Client) (topicPartOffsets map[string]map[int32]int64) {
+// Get partitions offsets of topics.
+func getTopicPartitionOffsets(client sarama.Client) map[string]map[int32]map[string]string {
 	var topics, err = client.Topics()
 	if err != nil {
 		log.Panicf("Cannot get topics. %s", err)
 	}
 
-	topicPartOffsets = make(map[string]map[int32]int64)
+	topicPartOffsets := make(map[string]map[int32]map[string]string)
 	for _, topic := range topics {
 		partitions, err := client.Partitions(topic)
 		if err != nil {
-			log.Printf("Cannot get partitions of topic: %s, %s", topic, err)
-			panic(err)
+			log.Panicf("Cannot get partitions of topic: %s, %s", topic, err)
 		}
-		topicPartOffsets[topic] = make(map[int32]int64, len(partitions))
+		topicPartOffsets[topic] = make(map[int32]map[string]string, len(partitions))
 		for _, partition := range partitions {
+			// fmt.Printf("topic:%s, part:%d \n",topic,partition)
 			currentOffset, err := client.GetOffset(topic, partition, sarama.OffsetNewest)
 			if err != nil {
 				log.Panicf("Cannot get current offset of topic: %s, partition: %d, %s", topic, partition, err)
 			} else {
-				topicPartOffsets[topic][partition] = currentOffset
+				topicPartOffsets[topic][partition]["currentOffset"] = string(currentOffset)
 			}
 			oldestOffset, err := client.GetOffset(topic, partition, sarama.OffsetOldest)
 			if err != nil {
 				log.Panicf("Cannot get current oldest offset of topic: %s, partition: %d, %s", topic, partition, err)
 			} else {
-				topicPartOffsets[topic][partition] = oldestOffset
+				topicPartOffsets[topic][partition]["oldestOffset"] = string(oldestOffset)
 			}
 		}
 	}
