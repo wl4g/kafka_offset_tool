@@ -96,6 +96,7 @@ func main() {
 				log.Printf("Cannot get kafka groups. %s", err)
 				panic(err)
 			}
+
 			groupIds := make([]string, 0)
 			for groupId := range groups.Groups {
 				groupIds = append(groupIds, groupId)
