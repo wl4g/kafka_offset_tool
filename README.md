@@ -1,4 +1,4 @@
-KafkaOffsetTool a lightweight Tool for Kafka Migration Operation and Maintenance
+KafkaOffsetTool is a lightweight tool for Kafka offset operation and maintenance
 
 ## Quick start
 
