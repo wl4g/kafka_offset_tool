@@ -59,11 +59,9 @@ func init() {
 		flag.Usage()
 		os.Exit(0)
 	}
-
-	log.Printf("--- kafka options ---\n%s", opts)
+	// log.Printf("--- kafka options ---\n%s", opts)
 }
 
-// Using kafka client, See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
 func main() {
 	log.Printf("Initial kafka connect ...")
 
@@ -81,12 +79,11 @@ func main() {
 	if e2 != nil {
 		panic(e2)
 	}
-	var offsetManager, _ = sarama.NewOffsetManagerFromClient("", client)
-	fmt.Print(offsetManager)
 
-	// ------- Kafka topic partition offset info. ------------
+	// ------- Get topic partition offsets. ------------
+	var topicPartOffsets = getTopicPartitionOffsets(client)
 
-	// ------- Kafka group offset info. ----------------------
+	// ------- Kafka group offset info. ----------------
 	if len(client.Brokers()) > 0 {
 		for _, broker := range client.Brokers() {
 			if err := broker.Open(client.Config()); err != nil && err != sarama.ErrAlreadyConnected {
@@ -106,21 +103,111 @@ func main() {
 			// Get groups describe.
 			describeGroups, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: groupIds})
 			if err != nil {
-				log.Printf("Cannot get describe groups. %s", err)
-				panic(err)
+				log.Panicf("Cannot get describe groupId: %s, %s", groupIds, err)
 			}
 			// Get groups offset info.
 			for _, group := range describeGroups.Groups {
 				offsetFetchRequest := sarama.OffsetFetchRequest{ConsumerGroup: group.GroupId, Version: 1}
-				for topic, partitions := range offset {
+				for topic, partitions := range topicPartOffsets {
 					for partition := range partitions {
 						offsetFetchRequest.AddPartition(topic, partition)
+					}
+				}
+
+				offsetFetchResponse, err := broker.FetchOffset(&offsetFetchRequest)
+				if err != nil {
+					log.Panicf("Cannot get offset of group: %s, %s", group.GroupId, err)
+				}
+				for topic, partitions := range offsetFetchResponse.Blocks {
+					// If the topic is not consumed by that consumer group, skip it
+					topicConsumed := false
+					for _, offsetFetchResponseBlock := range partitions {
+						// Kafka will return -1 if there is no offset associated with a topic-partition under that consumer group
+						if offsetFetchResponseBlock.Offset != -1 {
+							topicConsumed = true
+							break
+						}
+					}
+					if topicConsumed {
+						var currentOffsetSum int64
+						var lagSum int64
+						for partition, offsetFetchResponseBlock := range partitions {
+							err := offsetFetchResponseBlock.Err
+							if err != sarama.ErrNoError {
+								log.Printf("Error for partition: %d, %s", partition, err)
+								continue
+							}
+							currentOffset := offsetFetchResponseBlock.Offset
+							currentOffsetSum += currentOffset
+							// currentOffset <= topic,groupId,partition
+
+							if offset, ok := topicPartOffsets[topic][partition]; ok {
+								// If the topic is consumed by that consumer group, but no offset associated with the partition
+								// forcing lag to -1 to be able to alert on that
+								var lag int64
+								if offsetFetchResponseBlock.Offset == -1 {
+									lag = -1
+								} else {
+									lag = offset - offsetFetchResponseBlock.Offset
+									lagSum += lag
+								}
+								// lag <= topic,groupId,partition
+							} else {
+								log.Printf("No offset of topic: %s, partition: %d, %s", topic, partition, err)
+							}
+						}
+
+						// currentOffsetSum <= topic,groupId,partition
+						// lagSum <= topic,groupId,partition
 					}
 				}
 			}
 		}
 	} else {
-		panic("No valid broker, cannot get consumer group metrics")
+		log.Panicf("Cannot get topic group information, no valid broker.")
 	}
-	log.Printf("Kafka operation finished!")
+}
+
+// Get topic partitions offset.
+func getTopicPartitionOffsets(client sarama.Client) (topicPartOffsets map[string]map[int32]int64) {
+	var topics, err = client.Topics()
+	if err != nil {
+		log.Panicf("Cannot get topics. %s", err)
+	}
+
+	topicPartOffsets = make(map[string]map[int32]int64)
+	for _, topic := range topics {
+		partitions, err := client.Partitions(topic)
+		if err != nil {
+			log.Printf("Cannot get partitions of topic: %s, %s", topic, err)
+			panic(err)
+		}
+		topicPartOffsets[topic] = make(map[int32]int64, len(partitions))
+		for _, partition := range partitions {
+			currentOffset, err := client.GetOffset(topic, partition, sarama.OffsetNewest)
+			if err != nil {
+				log.Panicf("Cannot get current offset of topic: %s, partition: %d, %s", topic, partition, err)
+			} else {
+				topicPartOffsets[topic][partition] = currentOffset
+			}
+			oldestOffset, err := client.GetOffset(topic, partition, sarama.OffsetOldest)
+			if err != nil {
+				log.Panicf("Cannot get current oldest offset of topic: %s, partition: %d, %s", topic, partition, err)
+			} else {
+				topicPartOffsets[topic][partition] = oldestOffset
+			}
+		}
+	}
+	return topicPartOffsets
+}
+
+// Reset topic group partitions offset.
+// See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
+func resetOffset(client sarama.Client, offset int64, topic string, groupId string, partition int32) {
+	var offsetManager, _ = sarama.NewOffsetManagerFromClient(groupId, client)
+	fmt.Print(offsetManager)
+	var pom, _ = offsetManager.ManagePartition(topic, partition)
+	pom.ResetOffset(offset, "modified_meta")
+
+	log.Printf("Reseted offset: %d, topic: %s, group: %s, partition: %d", offset, topic, groupId, partition)
 }
