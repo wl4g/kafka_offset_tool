@@ -17,7 +17,7 @@ rem -------------------------------------------------------------------------
 rem --- Compiling Mac and Linux 64-bit executable programs under Windows. ---
 rem -------------------------------------------------------------------------
 SET CGO_ENABLED=0
-SET GOOS=darwin
+rem SET GOOS=darwin
 SET GOOS=linux
 SET GOARCH=amd64
 go build -o kafkaOffsetTool ..\pkg\
