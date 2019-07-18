@@ -43,14 +43,16 @@ type kafkaOption struct {
 	resetOffset    int64
 }
 
-type ProducedTopicOffset struct {
+type ProducedOffset struct {
 	NewestOffset int64 // LogSize
 	OldestOffset int64
 }
 
-type ConsumedTopicOffset struct {
+type ConsumedOffset struct {
 	ConsumedOffset int64
 	Lag            int64
+	Member         *sarama.GroupMemberDescription
+	ProducedOffset
 }
 
 var (
@@ -110,6 +112,26 @@ func main() {
 			},
 		},
 		{
+			Name:        "list-consumer",
+			Usage:       "list-consumer [OPTION]...",
+			Description: "Get the consumer list.",
+			Flags: []cli.Flag{
+				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "(default: localhost:9092) --brokers=127.0.0.1:9092",
+					Destination: &opt.brokers},
+				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
+					Destination: &opt.kafkaVersion},
+				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "(default: *) --filter=myPrefix\\\\S*"},
+				cli.StringFlag{Name: "type,t", Value: "*", Usage: "(default: *) --type=zk|kf"},
+			},
+			Before: func(c *cli.Context) error {
+				return clientConnect()
+			},
+			Action: func(c *cli.Context) error {
+				getConsumedTopicPartitionOffsets()
+				return nil
+			},
+		},
+		{
 			Name:        "reset-offset",
 			Usage:       "reset-offset [OPTION]...",
 			Description: "Reset the offset of the specified grouping topic partition.",
@@ -127,7 +149,6 @@ func main() {
 				return clientConnect()
 			},
 			Action: func(c *cli.Context) error {
-				getConsumedTopicPartitionOffsets()
 				resetOffset()
 				return nil
 			},
@@ -208,14 +229,32 @@ func listTopic() []string {
 	return topics
 }
 
+// Get consumer group member by topic and partition.
+func getGroupMember(members map[string]*sarama.GroupMemberDescription,
+	topic string, partition int32) *sarama.GroupMemberDescription {
+	for _, member := range members {
+		memberAssign, _ := member.GetMemberAssignment()
+		for _topic, partitions := range memberAssign.Topics {
+			if strings.Compare(_topic, topic) == 0 {
+				for _, _partition := range partitions {
+					if _partition == partition {
+						return member
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // Consumed topic partition offsets.
-func getConsumedTopicPartitionOffsets() map[string]map[string]map[int32]ConsumedTopicOffset {
+func getConsumedTopicPartitionOffsets() map[string]map[string]map[int32]ConsumedOffset {
 	// Produced offsets of topics.
-	producedTopicOffsets := getProducedTopicPartitionOffsets()
+	producedOffsets := getProducedTopicPartitionOffsets()
 	log.Printf("Extract topic partition offset relation basis on groups...")
 
 	// Consumed offsets of groups.
-	consumedTopicOffsets := make(map[string]map[string]map[int32]ConsumedTopicOffset)
+	consumedOffsets := make(map[string]map[string]map[int32]ConsumedOffset)
 	if len(opt.client.Brokers()) <= 0 {
 		log.Panicf("Cannot get topic group information, no valid broker.")
 	}
@@ -223,18 +262,18 @@ func getConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Consumed
 	for _, broker := range listBroker() {
 		groupIds := listGroupId(broker)
 
-		// Get groups describe.
+		// Describe groups.
 		describeGroups, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: groupIds})
 		if err != nil {
 			log.Panicf("Cannot get describe groupId: %s, %s", groupIds, err)
 		}
 		// Get group offsets by topic and partition.
 		for _, group := range describeGroups.Groups {
-			consumedTopicOffsets[group.GroupId] = make(map[string]map[int32]ConsumedTopicOffset)
+			consumedOffsets[group.GroupId] = make(map[string]map[int32]ConsumedOffset)
 
 			// Group consumer by topic and partition all.
 			offsetFetchRequest := sarama.OffsetFetchRequest{ConsumerGroup: group.GroupId, Version: 1}
-			for topic, partitions := range producedTopicOffsets {
+			for topic, partitions := range producedOffsets {
 				for partition := range partitions {
 					offsetFetchRequest.AddPartition(topic, partition)
 				}
@@ -246,20 +285,20 @@ func getConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Consumed
 				log.Panicf("Cannot get offset of group: %s, %s", group.GroupId, err)
 			}
 			for topic, partitions := range offsetFetchResponse.Blocks {
-				consumedTopicOffsets[group.GroupId][topic] = make(map[int32]ConsumedTopicOffset)
+				consumedOffsets[group.GroupId][topic] = make(map[int32]ConsumedOffset)
 				for partition, offsetFetchResponseBlock := range partitions {
 					err := offsetFetchResponseBlock.Err
 					if err != sarama.ErrNoError {
 						log.Printf("Error for partition: %d, %s", partition, err)
 						continue
 					}
-					// Current offset of group partition .
-					_consumedOffset := ConsumedTopicOffset{}
-					consumedTopicOffsets[group.GroupId][topic][partition] = _consumedOffset
+					// Current consumed offset.
+					_consumedOffset := ConsumedOffset{}
+					consumedOffsets[group.GroupId][topic][partition] = _consumedOffset
 					_consumedOffset.ConsumedOffset = offsetFetchResponseBlock.Offset
 
 					// Lag of group partition.
-					if _producedOffset, ok := producedTopicOffsets[topic][partition]; ok {
+					if _producedOffset, ok := producedOffsets[topic][partition]; ok {
 						// If the topic is consumed by that consumer group, but no offsetInfo associated with the partition
 						// forcing lag to -1 to be able to alert on that
 						var lag int64
@@ -269,25 +308,30 @@ func getConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Consumed
 							lag = _producedOffset.NewestOffset - offsetFetchResponseBlock.Offset
 						}
 						_consumedOffset.Lag = lag
+						_consumedOffset.NewestOffset = _producedOffset.NewestOffset
+						_consumedOffset.OldestOffset = _producedOffset.OldestOffset
 					} else {
 						log.Printf("No offsetInfo of topic: %s, partition: %d, %s", topic, partition, err)
 					}
+
+					// Consumed group member.
+					_consumedOffset.Member = getGroupMember(group.Members, topic, partition)
 				}
 			}
 		}
 	}
-	return consumedTopicOffsets
+	return consumedOffsets
 }
 
 // Produced topic partition offsets.
-func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedTopicOffset {
+func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 	log.Printf("Fetching metadata of the topic partitions infor...")
 
 	// Describe topic partition offset.
 	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
 
-	producedTopicOffsets := make(map[string]map[int32]ProducedTopicOffset)
+	producedTopicOffsets := make(map[string]map[int32]ProducedOffset)
 	for _, topic := range listTopic() {
 		//log.Printf("Fetching partition info for topics: %s ...", topic)
 
@@ -299,13 +343,13 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedTopicOffset
 				log.Panicf("Cannot get partitions of topic: %s, %s", topic, err)
 			}
 			mu.Lock()
-			producedTopicOffsets[topic] = make(map[int32]ProducedTopicOffset, len(partitions))
+			producedTopicOffsets[topic] = make(map[int32]ProducedOffset, len(partitions))
 			mu.Unlock()
 
 			for _, partition := range partitions {
 				//fmt.Printf("topic:%s, part:%d \n", topic, partition)
 				mu.Lock()
-				_topicOffset := ProducedTopicOffset{}
+				_topicOffset := ProducedOffset{}
 				producedTopicOffsets[topic][partition] = _topicOffset
 				mu.Unlock()
 
