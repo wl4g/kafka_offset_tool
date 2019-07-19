@@ -16,9 +16,9 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/Shopify/sarama"
+	"github.com/bndr/gotabulate"
 	"github.com/krallistic/kazoo-go"
 	"github.com/urfave/cli"
 	"kafka_offset_tool/pkg/tool"
@@ -171,9 +171,8 @@ func parseExecution() {
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
-				buffer := bytes.Buffer{}
-				buffer.WriteString("===================== List of consumed information. ====================\n")
-				buffer.WriteString(fmt.Sprintf("\t\tGroup\t\t\t\t\t\tTopic\t\t\t\t\t\t\tPartition\tOldestOffset\tNewestOffset\tLag\tConsumedOffset\tConsumerOwner\tType\n"))
+				dataset := make([][]string, 0)
+				// Extract & analysis consumed partition offsets.
 				consumedOffset := analysisConsumedTopicPartitionOffsets()
 				for group, consumedTopicOffset := range consumedOffset {
 					if tool.Match(opt.groupFilter, group) {
@@ -182,17 +181,32 @@ func parseExecution() {
 								for partition, consumedOffset := range partitionOffset {
 									memberString := consumedOffset.memberAsString()
 									if tool.Match(opt.consumerFilter, memberString) {
-										buffer.WriteString(fmt.Sprintf("%s\t%s\t\t\t\t\t\t%d\t\t\t\t%d\t\t\t\t%d\t\t\t%d\t\t%d\t\t\t%s\t%s",
-											group, topic, partition, consumedOffset.OldestOffset, consumedOffset.NewestOffset,
-											consumedOffset.Lag, consumedOffset.ConsumedOffset, memberString, consumedOffset.ConsumerType))
-										buffer.WriteString("\n")
+										// New print row.
+										row := []string{group, topic, string(partition), string(consumedOffset.OldestOffset),
+											string(consumedOffset.NewestOffset), string(consumedOffset.Lag),
+											string(consumedOffset.ConsumedOffset), memberString, consumedOffset.ConsumerType}
+										dataset = append(dataset, row)
 									}
 								}
 							}
 						}
 					}
 				}
-				fmt.Printf("\n%s\n", buffer.String())
+
+				// Set go-tabulate writer.
+				tabulate := gotabulate.Create(dataset)
+				// Set the Empty String (optional)
+				tabulate.SetEmptyString("None")
+				// Set Align (Optional)
+				tabulate.SetAlign("center")
+				// Set Max Cell Size
+				tabulate.SetMaxCellSize(16)
+				// Set the Headers (optional)
+				tabulate.SetHeaders([]string{"Group", "Topic", "Partition", "OldestOffset",
+					"NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"})
+				// Print the result: grid, or simple
+				fmt.Println(tabulate.Render("grid"))
+
 				return nil
 			},
 		},
