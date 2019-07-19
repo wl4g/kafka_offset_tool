@@ -23,25 +23,38 @@ import (
 )
 
 // Check whether the string contains
-func StringsContains(array []string, val string) bool {
-	for i := 0; i < len(array); i++ {
-		if strings.TrimSpace(array[i]) == strings.TrimSpace(val) {
+func StringsContains(values []string, search string) bool {
+	for i := 0; i < len(values); i++ {
+		if strings.TrimSpace(values[i]) == strings.TrimSpace(search) {
 			return true
 		}
 	}
 	return false
 }
 
-// Is empty
-func IsEmpty(str string) bool {
-	return str == "" || len(str) <= 0
+// Is any blank
+func IsAnyBlank(values ...string) bool {
+	if values == nil || len(values) <= 0 {
+		return true
+	}
+	for _, value := range values {
+		if IsBlank(value) {
+			return true
+		}
+	}
+	return false
+}
+
+// Is blank
+func IsBlank(value string) bool {
+	return &value == nil || strings.TrimSpace(value) == "" || len(strings.TrimSpace(value)) <= 0
 }
 
 /**
  * String regular expression match.
  */
 func Match(regex string, value string) bool {
-	if IsEmpty(regex) || IsEmpty(value) {
+	if IsBlank(regex) || IsBlank(value) {
 		return false
 	}
 	if strings.TrimSpace(regex) == "*" {

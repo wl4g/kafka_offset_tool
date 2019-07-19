@@ -92,13 +92,18 @@ func main() {
 			Usage:       "list-group [OPTION]...",
 			Description: "Get the group list.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "(default: localhost:9092) --brokers=127.0.0.1:9092",
+				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "--brokers=127.0.0.1:9092",
 					Destination: &opt.brokers},
+				cli.StringFlag{Name: "zkServers,z", Value: "localhost:2181", Usage: "--zkServers=127.0.0.1:2181",
+					Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
-				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "(default: *) --filter=myPrefix\\\\S*"},
+				cli.StringFlag{Name: "groupFilter,f", Value: "*", Usage: "(default: *) --groupFilter=myPrefix\\\\S*"},
 			},
 			Before: func(c *cli.Context) error {
+				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
+					tool.FatalExit("Required arguments must not be null")
+				}
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
@@ -112,17 +117,22 @@ func main() {
 			Usage:       "list-topic [OPTION]...",
 			Description: "Get the topic list.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "(default: localhost:9092) --brokers=127.0.0.1:9092",
+				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "--brokers=127.0.0.1:9092",
 					Destination: &opt.brokers},
+				cli.StringFlag{Name: "zkServers,z", Value: "localhost:2181", Usage: "--zkServers=127.0.0.1:2181",
+					Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "(default: *) --filter=myPrefix\\\\S*"},
 			},
 			Before: func(c *cli.Context) error {
+				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
+					tool.FatalExit("Required arguments must not be null")
+				}
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
-				tool.PrintResult("List of topics information.", listTopic())
+				tool.PrintResult("List of topics information.", listTopicAll())
 				return nil
 			},
 		},
@@ -131,8 +141,10 @@ func main() {
 			Usage:       "list-consumer [OPTION]...",
 			Description: "Get the consumer list.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "(default: localhost:9092) --brokers=127.0.0.1:9092",
+				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "--brokers=127.0.0.1:9092",
 					Destination: &opt.brokers},
+				cli.StringFlag{Name: "zkServers,z", Value: "localhost:2181", Usage: "--zkServers=127.0.0.1:2181",
+					Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "groupFilter", Value: "*", Usage: "(default: *) --groupFilter=myPrefix\\\\S*",
@@ -144,6 +156,9 @@ func main() {
 				//cli.StringFlag{Name: "type,t", Value: "*", Usage: "(default: *) --type=zk|kf"},
 			},
 			Before: func(c *cli.Context) error {
+				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
+					tool.FatalExit("Required arguments must not be null")
+				}
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
@@ -177,8 +192,10 @@ func main() {
 			Usage:       "reset-offset [OPTION]...",
 			Description: "Reset the offset of the specified grouping topic partition.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "(default: localhost:9092) --brokers=127.0.0.1:9092",
+				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "--brokers=127.0.0.1:9092",
 					Destination: &opt.brokers},
+				cli.StringFlag{Name: "zkServers,z", Value: "localhost:2181", Usage: "--zkServers=127.0.0.1:2181",
+					Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "group,g", Usage: "--group=myGroup", Destination: &opt.resetGroupId},
@@ -187,6 +204,9 @@ func main() {
 				cli.Int64Flag{Name: "offset,f", Usage: "--partition=0", Destination: &opt.resetOffset},
 			},
 			Before: func(c *cli.Context) error {
+				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
+					tool.FatalExit("Required arguments must not be null")
+				}
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
@@ -211,7 +231,7 @@ func ensureConnected() error {
 		if kafkaVer, e1 := sarama.ParseKafkaVersion(opt.kafkaVersion); e1 == nil {
 			config.Version = kafkaVer
 		} else {
-			log.Panicf("Unrecognizable kafka version. %s", e1)
+			tool.ErrorExit(e1, "Unrecognizable kafka version.")
 		}
 
 		// Connect kafka brokers.
@@ -219,7 +239,7 @@ func ensureConnected() error {
 		if client, e2 := sarama.NewClient(strings.Split(opt.brokers, ","), config); e2 == nil {
 			opt.client = client
 		} else {
-			log.Panicf("Unable connect kafka brokers. %s", e2)
+			tool.ErrorExit(e2, "Unable connect kafka brokers. %s", opt.brokers)
 		}
 		// defer opt.client.Close()
 
@@ -227,7 +247,7 @@ func ensureConnected() error {
 		if zkClient, e3 := kazoo.NewKazoo(strings.Split(opt.zkServers, ","), nil); e3 == nil {
 			opt.zkClient = zkClient
 		} else {
-			log.Panicf("Unable connect zk servers. %s", e3.Error())
+			tool.ErrorExit(e3, "Unable connect zk servers. %s", opt.zkServers)
 		}
 		// defer opt.zkClient.Close()
 	}
@@ -238,7 +258,7 @@ func ensureConnected() error {
 func listBroker() []*sarama.Broker {
 	brokers := opt.client.Brokers()
 	if len(brokers) <= 0 {
-		log.Panicf("Cannot get brokers.")
+		tool.FatalExit("Cannot get brokers.")
 	}
 	return brokers
 }
@@ -257,13 +277,13 @@ func listGroupIdAll() []string {
 // List of groupIds on broker.
 func listGroupId(broker *sarama.Broker) []string {
 	if err := broker.Open(opt.client.Config()); err != nil && err != sarama.ErrAlreadyConnected {
-		log.Panicf("Cannot connect to brokerID: %d, %s", broker.ID(), err.Error())
+		tool.ErrorExit(err, "Cannot connect to brokerID: %d, %s", broker.ID())
 	}
 
 	// Get groupIds.
 	groups, err := broker.ListGroups(&sarama.ListGroupsRequest{})
 	if err != nil {
-		log.Panicf("Cannot get kafka groups. %s", err.Error())
+		tool.ErrorExit(err, "Cannot get kafka groups.")
 	}
 	groupIds := make([]string, 0)
 	for groupId := range groups.Groups {
@@ -273,10 +293,10 @@ func listGroupId(broker *sarama.Broker) []string {
 }
 
 // List of topic names.
-func listTopic() []string {
+func listTopicAll() []string {
 	var topics, err = opt.client.Topics()
 	if err != nil {
-		log.Panicf("Cannot get topics. %s", err.Error())
+		tool.ErrorExit(err, "Cannot get topics.")
 	}
 	//log.Printf("Got size of topics: %d", len(topics))
 	return topics
@@ -315,7 +335,7 @@ func getConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Consumed
 		// Describe groups.
 		describeGroups, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: groupIds})
 		if err != nil {
-			log.Panicf("Cannot get describe groupId: %s, %s", groupIds, err.Error())
+			tool.ErrorExit(err, "Cannot get describe groupId: %s, %s", groupIds)
 		}
 		// Get group offsets by topic and partition.
 		for _, group := range describeGroups.Groups {
@@ -332,7 +352,7 @@ func getConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Consumed
 			// Fetch offset all of group.
 			offsetFetchResponse, err := broker.FetchOffset(&offsetFetchRequest)
 			if err != nil {
-				log.Panicf("Cannot get offset of group: %s, %s", group.GroupId, err.Error())
+				tool.ErrorExit(err, "Cannot get offset of group: %s, %s", group.GroupId)
 			}
 			for topic, partitions := range offsetFetchResponse.Blocks {
 				consumedOffsets[group.GroupId][topic] = make(map[int32]ConsumedOffset)
@@ -382,7 +402,7 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 	wg := sync.WaitGroup{}
 
 	producedTopicOffsets := make(map[string]map[int32]ProducedOffset)
-	for _, topic := range listTopic() {
+	for _, topic := range listTopicAll() {
 		//log.Printf("Fetching partition info for topics: %s ...", topic)
 
 		go func(topic string) {
@@ -390,7 +410,7 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 			defer wg.Done()
 			partitions, err := opt.client.Partitions(topic)
 			if err != nil {
-				log.Panicf("Cannot get partitions of topic: %s, %s", topic, err.Error())
+				tool.ErrorExit(err, "Cannot get partitions of topic: %s, %s", topic)
 			}
 			mu.Lock()
 			producedTopicOffsets[topic] = make(map[int32]ProducedOffset, len(partitions))
@@ -406,7 +426,7 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 				// Largest offset(logSize).
 				newestOffset, err := opt.client.GetOffset(topic, partition, sarama.OffsetNewest)
 				if err != nil {
-					log.Panicf("Cannot get current offset of topic: %s, partition: %d, %s", topic, partition, err.Error())
+					tool.ErrorExit(err, "Cannot get current offset of topic: %s, partition: %d, %s", topic, partition)
 				} else {
 					mu.Lock()
 					_topicOffset.NewestOffset = newestOffset
@@ -416,7 +436,7 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 				// Oldest offset.
 				oldestOffset, err := opt.client.GetOffset(topic, partition, sarama.OffsetOldest)
 				if err != nil {
-					log.Panicf("Cannot get current oldest offset of topic: %s, partition: %d, %s", topic, partition, err.Error())
+					tool.ErrorExit(err, "Cannot get current oldest offset of topic: %s, partition: %d, %s", topic, partition)
 				} else {
 					mu.Lock()
 					_topicOffset.OldestOffset = oldestOffset
