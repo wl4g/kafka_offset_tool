@@ -40,6 +40,7 @@ type kafkaOption struct {
 	groupFilter    string
 	topicFilter    string
 	consumerFilter string
+	consumerType   string
 
 	resetGroupId   string
 	resetTopic     string
@@ -70,7 +71,9 @@ func (consumedOffset *ConsumedOffset) memberAsString() string {
 }
 
 var (
-	opt = kafkaOption{}
+	zkType = "zk"
+	kfType = "kf"
+	opt    = kafkaOption{}
 )
 
 /**
@@ -153,11 +156,15 @@ func main() {
 					Destination: &opt.topicFilter},
 				cli.StringFlag{Name: "consumerFilter", Value: "*", Usage: "(default: *) --consumerFilter=myPrefix\\\\S*",
 					Destination: &opt.consumerFilter},
-				//cli.StringFlag{Name: "type,t", Value: "*", Usage: "(default: *) --type=zk|kf"},
+				cli.StringFlag{Name: "type,t", Value: "*", Usage: "(default: *) --type=zk|kf",
+					Destination: &opt.consumerType},
 			},
 			Before: func(c *cli.Context) error {
 				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
 					tool.FatalExit("Required arguments must not be null")
+				}
+				if !(tool.StringsContains([]string{zkType, kfType, "*"}, opt.consumerType)) {
+					tool.FatalExit("Invalid consumer type. %s", opt.consumerType)
 				}
 				return ensureConnected()
 			},
