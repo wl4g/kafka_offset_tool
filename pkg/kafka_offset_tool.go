@@ -18,13 +18,13 @@ package main
 import (
 	"fmt"
 	"github.com/Shopify/sarama"
-	"github.com/bndr/gotabulate"
 	"github.com/krallistic/kazoo-go"
 	"github.com/urfave/cli"
 	"kafka_offset_tool/pkg/tool"
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -171,7 +171,7 @@ func parseExecution() {
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
-				dataset := make([][]string, 0)
+				dataset := make([][]interface{}, 0)
 				// Extract & analysis consumed partition offsets.
 				consumedOffset := analysisConsumedTopicPartitionOffsets()
 				for group, consumedTopicOffset := range consumedOffset {
@@ -182,9 +182,13 @@ func parseExecution() {
 									memberString := consumedOffset.memberAsString()
 									if tool.Match(opt.consumerFilter, memberString) {
 										// New print row.
-										row := []string{group, topic, string(partition), string(consumedOffset.OldestOffset),
-											string(consumedOffset.NewestOffset), string(consumedOffset.Lag),
-											string(consumedOffset.ConsumedOffset), memberString, consumedOffset.ConsumerType}
+										row := []interface{}{group, topic,
+											strconv.FormatInt(int64(partition), 10),
+											strconv.FormatInt(consumedOffset.OldestOffset, 10),
+											strconv.FormatInt(consumedOffset.NewestOffset, 10),
+											strconv.FormatInt(consumedOffset.Lag, 10),
+											strconv.FormatInt(consumedOffset.ConsumedOffset, 10),
+											memberString, consumedOffset.ConsumerType}
 										dataset = append(dataset, row)
 									}
 								}
@@ -192,21 +196,7 @@ func parseExecution() {
 						}
 					}
 				}
-
-				// Set go-tabulate writer.
-				tabulate := gotabulate.Create(dataset)
-				// Set the Empty String (optional)
-				tabulate.SetEmptyString("None")
-				// Set Align (Optional)
-				tabulate.SetAlign("center")
-				// Set Max Cell Size
-				tabulate.SetMaxCellSize(16)
-				// Set the Headers (optional)
-				tabulate.SetHeaders([]string{"Group", "Topic", "Partition", "OldestOffset",
-					"NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"})
-				// Print the result: grid, or simple
-				fmt.Println(tabulate.Render("grid"))
-
+				tool.GridPrinf(dataset)
 				return nil
 			},
 		},
