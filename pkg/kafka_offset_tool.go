@@ -242,7 +242,6 @@ func ensureConnected() error {
 		}
 
 		// Connect kafka brokers.
-
 		if client, e2 := sarama.NewClient(strings.Split(opt.brokers, ","), config); e2 == nil {
 			opt.client = client
 		} else {
@@ -253,6 +252,10 @@ func ensureConnected() error {
 		// Connect zookeeper servers.
 		if zkClient, e3 := kazoo.NewKazoo(strings.Split(opt.zkServers, ","), nil); e3 == nil {
 			opt.zkClient = zkClient
+			// Do you have to get it to check the connection ???
+			if _, e4 := zkClient.Brokers(); e4 != nil {
+				tool.ErrorExit(e4, "Unable connect zk servers. %s", opt.zkServers)
+			}
 		} else {
 			tool.ErrorExit(e3, "Unable connect zk servers. %s", opt.zkServers)
 		}
