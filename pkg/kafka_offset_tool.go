@@ -99,11 +99,11 @@ func main() {
 			Usage:       "list-group [OPTION]...",
 			Description: "Get the group list.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,s", Usage: "--brokers=127.0.0.1:9092", Destination: &opt.brokers},
+				cli.StringFlag{Name: "brokers,b", Usage: "--brokers=127.0.0.1:9092", Destination: &opt.brokers},
 				cli.StringFlag{Name: "zkServers,z", Usage: "--zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
-				cli.StringFlag{Name: "groupFilter,f", Value: "*", Usage: "(default: *) --groupFilter=myPrefix\\\\S*"},
+				cli.StringFlag{Name: "groupFilter,f", Value: "*", Usage: "--groupFilter=myPrefix\\\\S*"},
 			},
 			Before: func(c *cli.Context) error {
 				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
@@ -122,11 +122,11 @@ func main() {
 			Usage:       "list-topic [OPTION]...",
 			Description: "Get the topic list.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,s", Usage: "--brokers=127.0.0.1:9092", Destination: &opt.brokers},
+				cli.StringFlag{Name: "brokers,b", Usage: "--brokers=127.0.0.1:9092", Destination: &opt.brokers},
 				cli.StringFlag{Name: "zkServers,z", Usage: "--zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
-				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "(default: *) --filter=myPrefix\\\\S*"},
+				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "--filter=myPrefix\\\\S*"},
 			},
 			Before: func(c *cli.Context) error {
 				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
@@ -144,17 +144,17 @@ func main() {
 			Usage:       "list-consumer [OPTION]...",
 			Description: "Get the consumer list.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,s", Usage: "--brokers=127.0.0.1:9092", Destination: &opt.brokers},
+				cli.StringFlag{Name: "brokers,b", Usage: "--brokers=127.0.0.1:9092", Destination: &opt.brokers},
 				cli.StringFlag{Name: "zkServers,z", Usage: "--zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
-				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
+				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: " --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
-				cli.StringFlag{Name: "groupFilter", Value: "*", Usage: "(default: *) --groupFilter=myPrefix\\\\S*",
+				cli.StringFlag{Name: "groupFilter", Value: "*", Usage: "--groupFilter=myPrefix\\\\S*",
 					Destination: &opt.groupFilter},
-				cli.StringFlag{Name: "topicFilter", Value: "*", Usage: "(default: *) --topicFilter=myPrefix\\\\S*",
+				cli.StringFlag{Name: "topicFilter", Value: "*", Usage: "--topicFilter=myPrefix\\\\S*",
 					Destination: &opt.topicFilter},
-				cli.StringFlag{Name: "consumerFilter", Value: "*", Usage: "(default: *) --consumerFilter=myPrefix\\\\S*",
+				cli.StringFlag{Name: "consumerFilter", Value: "*", Usage: "--consumerFilter=myPrefix\\\\S*",
 					Destination: &opt.consumerFilter},
-				cli.StringFlag{Name: "type,t", Value: "*", Usage: "(default: *) --type=zk|kf",
+				cli.StringFlag{Name: "type,t", Value: "*", Usage: "--type=zk|kf",
 					Destination: &opt.consumerType},
 			},
 			Before: func(c *cli.Context) error {
@@ -197,9 +197,9 @@ func main() {
 			Usage:       "reset-offset [OPTION]...",
 			Description: "Reset the offset of the specified grouping topic partition.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,s", Usage: "--brokers=127.0.0.1:9092", Destination: &opt.brokers},
+				cli.StringFlag{Name: "brokers,b", Usage: "--brokers=127.0.0.1:9092", Destination: &opt.brokers},
 				cli.StringFlag{Name: "zkServers,z", Usage: "--zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
-				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
+				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "--version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "group,g", Usage: "--group=myGroup", Destination: &opt.resetGroupId},
 				cli.StringFlag{Name: "topic,t", Usage: "--topic=myTopic", Destination: &opt.resetTopic},
