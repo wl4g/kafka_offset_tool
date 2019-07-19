@@ -57,6 +57,7 @@ type ConsumedOffset struct {
 	ConsumedOffset int64
 	Lag            int64
 	Member         *sarama.GroupMemberDescription
+	ConsumerType   string
 	ProducedOffset
 }
 
@@ -70,10 +71,13 @@ func (consumedOffset *ConsumedOffset) memberAsString() string {
 	return memberString
 }
 
-var (
+const (
 	zkType = "zk"
 	kfType = "kf"
-	opt    = kafkaOption{}
+)
+
+var (
+	opt = kafkaOption{}
 )
 
 /**
@@ -95,23 +99,21 @@ func main() {
 			Usage:       "list-group [OPTION]...",
 			Description: "Get the group list.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "--brokers=127.0.0.1:9092",
-					Destination: &opt.brokers},
-				cli.StringFlag{Name: "zkServers,z", Value: "localhost:2181", Usage: "--zkServers=127.0.0.1:2181",
-					Destination: &opt.zkServers},
+				cli.StringFlag{Name: "brokers,s", Usage: "--brokers=127.0.0.1:9092", Destination: &opt.brokers},
+				cli.StringFlag{Name: "zkServers,z", Usage: "--zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "groupFilter,f", Value: "*", Usage: "(default: *) --groupFilter=myPrefix\\\\S*"},
 			},
 			Before: func(c *cli.Context) error {
 				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
-					tool.FatalExit("Required arguments must not be null")
+					tool.FatalExit("Arguments brokers,zkServers is required")
 				}
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
 				//fmt.Fprintf(c.App.Writer, ":list-group--processing, %s", c.String("filter"))
-				tool.PrintResult("List of groups information.", listGroupIdAll())
+				tool.PrintResult("List of groups information.", listKafkaGroupIdAll())
 				return nil
 			},
 		},
@@ -120,22 +122,20 @@ func main() {
 			Usage:       "list-topic [OPTION]...",
 			Description: "Get the topic list.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "--brokers=127.0.0.1:9092",
-					Destination: &opt.brokers},
-				cli.StringFlag{Name: "zkServers,z", Value: "localhost:2181", Usage: "--zkServers=127.0.0.1:2181",
-					Destination: &opt.zkServers},
+				cli.StringFlag{Name: "brokers,s", Usage: "--brokers=127.0.0.1:9092", Destination: &opt.brokers},
+				cli.StringFlag{Name: "zkServers,z", Usage: "--zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "(default: *) --filter=myPrefix\\\\S*"},
 			},
 			Before: func(c *cli.Context) error {
 				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
-					tool.FatalExit("Required arguments must not be null")
+					tool.FatalExit("Arguments brokers,zkServers is required")
 				}
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
-				tool.PrintResult("List of topics information.", listTopicAll())
+				tool.PrintResult("List of topics information.", listKafkaTopicAll())
 				return nil
 			},
 		},
@@ -144,10 +144,8 @@ func main() {
 			Usage:       "list-consumer [OPTION]...",
 			Description: "Get the consumer list.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "--brokers=127.0.0.1:9092",
-					Destination: &opt.brokers},
-				cli.StringFlag{Name: "zkServers,z", Value: "localhost:2181", Usage: "--zkServers=127.0.0.1:2181",
-					Destination: &opt.zkServers},
+				cli.StringFlag{Name: "brokers,s", Usage: "--brokers=127.0.0.1:9092", Destination: &opt.brokers},
+				cli.StringFlag{Name: "zkServers,z", Usage: "--zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "groupFilter", Value: "*", Usage: "(default: *) --groupFilter=myPrefix\\\\S*",
@@ -161,7 +159,7 @@ func main() {
 			},
 			Before: func(c *cli.Context) error {
 				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
-					tool.FatalExit("Required arguments must not be null")
+					tool.FatalExit("Arguments brokers,zkServers is required")
 				}
 				if !(tool.StringsContains([]string{zkType, kfType, "*"}, opt.consumerType)) {
 					tool.FatalExit("Invalid consumer type. %s", opt.consumerType)
@@ -170,9 +168,9 @@ func main() {
 			},
 			Action: func(c *cli.Context) error {
 				buffer := bytes.Buffer{}
-				buffer.WriteString("============================================= List of consumed information. ==========================================\n")
-				buffer.WriteString(fmt.Sprintf("\t\tGroup\t\t\t\t\t\tTopic\t\t\t\t\t\t\t\tPartition\tOldestOffset\tNewestOffset\tLag\tConsumedOffset\tConsumerInstanceOwner\n"))
-				consumedOffset := getConsumedTopicPartitionOffsets()
+				buffer.WriteString("===================== List of consumed information. ====================\n")
+				buffer.WriteString(fmt.Sprintf("\t\tGroup\t\t\t\t\t\tTopic\t\t\t\t\t\t\tPartition\tOldestOffset\tNewestOffset\tLag\tConsumedOffset\tConsumerOwner\tType\n"))
+				consumedOffset := analysisConsumedTopicPartitionOffsets()
 				for group, consumedTopicOffset := range consumedOffset {
 					if tool.Match(opt.groupFilter, group) {
 						for topic, partitionOffset := range consumedTopicOffset {
@@ -180,9 +178,9 @@ func main() {
 								for partition, consumedOffset := range partitionOffset {
 									memberString := consumedOffset.memberAsString()
 									if tool.Match(opt.consumerFilter, memberString) {
-										buffer.WriteString(fmt.Sprintf("%s\t%s\t\t\t\t\t\t%d\t\t\t\t%d\t\t\t\t%d\t\t\t%d\t\t%d\t\t\t%s\t",
+										buffer.WriteString(fmt.Sprintf("%s\t%s\t\t\t\t\t\t%d\t\t\t\t%d\t\t\t\t%d\t\t\t%d\t\t%d\t\t\t%s\t%s",
 											group, topic, partition, consumedOffset.OldestOffset, consumedOffset.NewestOffset,
-											consumedOffset.Lag, consumedOffset.ConsumedOffset, memberString))
+											consumedOffset.Lag, consumedOffset.ConsumedOffset, memberString, consumedOffset.ConsumerType))
 										buffer.WriteString("\n")
 									}
 								}
@@ -199,10 +197,8 @@ func main() {
 			Usage:       "reset-offset [OPTION]...",
 			Description: "Reset the offset of the specified grouping topic partition.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,s", Value: "localhost:9092", Usage: "--brokers=127.0.0.1:9092",
-					Destination: &opt.brokers},
-				cli.StringFlag{Name: "zkServers,z", Value: "localhost:2181", Usage: "--zkServers=127.0.0.1:2181",
-					Destination: &opt.zkServers},
+				cli.StringFlag{Name: "brokers,s", Usage: "--brokers=127.0.0.1:9092", Destination: &opt.brokers},
+				cli.StringFlag{Name: "zkServers,z", Usage: "--zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "group,g", Usage: "--group=myGroup", Destination: &opt.resetGroupId},
@@ -212,7 +208,7 @@ func main() {
 			},
 			Before: func(c *cli.Context) error {
 				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
-					tool.FatalExit("Required arguments must not be null")
+					tool.FatalExit("Arguments brokers,zkServers is required")
 				}
 				return ensureConnected()
 			},
@@ -264,8 +260,8 @@ func ensureConnected() error {
 	return nil
 }
 
-// List of brokers.
-func listBroker() []*sarama.Broker {
+// List of brokers on kafka direct.
+func listKafkaBroker() []*sarama.Broker {
 	brokers := opt.client.Brokers()
 	if len(brokers) <= 0 {
 		tool.FatalExit("Cannot get brokers.")
@@ -273,19 +269,19 @@ func listBroker() []*sarama.Broker {
 	return brokers
 }
 
-// List of groupId all on broker.
-func listGroupIdAll() []string {
+// List of groupId all on kafka broker direct.
+func listKafkaGroupIdAll() []string {
 	groupIdAll := make([]string, 0)
-	for _, broker := range listBroker() {
-		for _, groupId := range listGroupId(broker) {
+	for _, broker := range listKafkaBroker() {
+		for _, groupId := range listKafkaGroupId(broker) {
 			groupIdAll = append(groupIdAll, groupId)
 		}
 	}
 	return groupIdAll
 }
 
-// List of groupIds on broker.
-func listGroupId(broker *sarama.Broker) []string {
+// List of groupIds on kafka broker direct.
+func listKafkaGroupId(broker *sarama.Broker) []string {
 	if err := broker.Open(opt.client.Config()); err != nil && err != sarama.ErrAlreadyConnected {
 		tool.ErrorExit(err, "Cannot connect to brokerID: %d, %s", broker.ID())
 	}
@@ -302,8 +298,8 @@ func listGroupId(broker *sarama.Broker) []string {
 	return groupIds
 }
 
-// List of topic names.
-func listTopicAll() []string {
+// List of topics on kafka broker direct.
+func listKafkaTopicAll() []string {
 	var topics, err = opt.client.Topics()
 	if err != nil {
 		tool.ErrorExit(err, "Cannot get topics.")
@@ -330,76 +326,134 @@ func getGroupMember(members map[string]*sarama.GroupMemberDescription,
 	return nil // Not member.
 }
 
-// Consumed topic partition offsets.
-func getConsumedTopicPartitionOffsets() map[string]map[string]map[int32]ConsumedOffset {
+// Analysis consumed topic partition offsets.
+func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]ConsumedOffset {
 	// Produced offsets of topics.
 	producedOffsets := getProducedTopicPartitionOffsets()
-	log.Printf("Extract topic partition offset relation basis on groups...")
+	log.Printf("Extract & analysis group topic partition offset relation...")
+
+	mu := sync.Mutex{}
+	wg := sync.WaitGroup{}
 
 	// Consumed offsets of groups.
 	consumedOffsets := make(map[string]map[string]map[int32]ConsumedOffset)
 
-	for _, broker := range listBroker() {
-		groupIds := listGroupId(broker)
+	// --- Kafka direct consumed group offset. ---
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for _, broker := range listKafkaBroker() {
+			groupIds := listKafkaGroupId(broker)
 
-		// Describe groups.
-		describeGroups, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: groupIds})
-		if err != nil {
-			tool.ErrorExit(err, "Cannot get describe groupId: %s, %s", groupIds)
-		}
-		// Get group offsets by topic and partition.
-		for _, group := range describeGroups.Groups {
-			consumedOffsets[group.GroupId] = make(map[string]map[int32]ConsumedOffset)
-
-			// Group consumer by topic and partition all.
-			offsetFetchRequest := sarama.OffsetFetchRequest{ConsumerGroup: group.GroupId, Version: 1}
-			for topic, partitions := range producedOffsets {
-				for partition := range partitions {
-					offsetFetchRequest.AddPartition(topic, partition)
-				}
-			}
-
-			// Fetch offset all of group.
-			offsetFetchResponse, err := broker.FetchOffset(&offsetFetchRequest)
+			// Describe groups.
+			describeGroups, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: groupIds})
 			if err != nil {
-				tool.ErrorExit(err, "Cannot get offset of group: %s, %s", group.GroupId)
+				tool.ErrorExit(err, "Cannot get describe groupId: %s, %s", groupIds)
 			}
-			for topic, partitions := range offsetFetchResponse.Blocks {
-				consumedOffsets[group.GroupId][topic] = make(map[int32]ConsumedOffset)
-				for partition, offsetFetchResponseBlock := range partitions {
-					err := offsetFetchResponseBlock.Err
-					if err != sarama.ErrNoError {
-						log.Printf("Error for partition: %d, %s", partition, err.Error())
-						continue
-					}
-					// Current consumed offset.
-					_consumedOffset := ConsumedOffset{}
-					consumedOffsets[group.GroupId][topic][partition] = _consumedOffset
-					_consumedOffset.ConsumedOffset = offsetFetchResponseBlock.Offset
+			for _, group := range describeGroups.Groups {
+				consumedOffsets[group.GroupId] = make(map[string]map[int32]ConsumedOffset)
 
-					// Lag of group partition.
-					if _producedOffset, ok := producedOffsets[topic][partition]; ok {
-						// If the topic is consumed by that consumer group, but no offsetInfo associated with the partition
-						// forcing lag to -1 to be able to alert on that
-						var lag int64
-						if offsetFetchResponseBlock.Offset == -1 {
-							lag = -1
-						} else {
-							lag = _producedOffset.NewestOffset - offsetFetchResponseBlock.Offset
+				// Group consumer by topic and partition all.
+				offsetFetchRequest := sarama.OffsetFetchRequest{ConsumerGroup: group.GroupId, Version: 1}
+				for topic, partitions := range producedOffsets {
+					for partition := range partitions {
+						offsetFetchRequest.AddPartition(topic, partition)
+					}
+				}
+
+				// Fetch offset all of group.
+				offsetFetchResponse, err := broker.FetchOffset(&offsetFetchRequest)
+				if err != nil {
+					tool.ErrorExit(err, "Cannot get offset of group: %s, %s", group.GroupId)
+				}
+				for topic, partitions := range offsetFetchResponse.Blocks {
+					consumedOffsets[group.GroupId][topic] = make(map[int32]ConsumedOffset)
+
+					for partition, offsetFetchResponseBlock := range partitions {
+						err := offsetFetchResponseBlock.Err
+						if err != sarama.ErrNoError {
+							log.Printf("Error for partition: %d, %s", partition, err.Error())
+							continue
 						}
-						_consumedOffset.Lag = lag
-						_consumedOffset.NewestOffset = _producedOffset.NewestOffset
-						_consumedOffset.OldestOffset = _producedOffset.OldestOffset
-					} else {
-						log.Printf("No offsetInfo of topic: %s, partition: %d, %s", topic, partition, err.Error())
-					}
 
-					// Consumed group member.
-					_consumedOffset.Member = getGroupMember(group.Members, topic, partition)
+						// Current consumed offset.
+						_consumedOffset := ConsumedOffset{ConsumerType: kfType}
+						consumedOffsets[group.GroupId][topic][partition] = _consumedOffset
+						_consumedOffset.ConsumedOffset = offsetFetchResponseBlock.Offset
+
+						// Lag of group partition.
+						if _producedOffset, e4 := producedOffsets[topic][partition]; e4 {
+							// If the topic is consumed by that consumer group, but no offsetInfo associated with the partition
+							// forcing lag to -1 to be able to alert on that
+							var lag int64
+							if offsetFetchResponseBlock.Offset == -1 {
+								lag = -1
+							} else {
+								lag = _producedOffset.NewestOffset - offsetFetchResponseBlock.Offset
+							}
+
+							mu.Lock()
+							_consumedOffset.Lag = lag
+							_consumedOffset.NewestOffset = _producedOffset.NewestOffset
+							_consumedOffset.OldestOffset = _producedOffset.OldestOffset
+							mu.Unlock()
+						} else {
+							log.Printf("No offsetInfo of topic: %s, partition: %d, %v", topic, partition, e4)
+						}
+
+						// Consumed group member.
+						mu.Lock()
+						_consumedOffset.Member = getGroupMember(group.Members, topic, partition)
+						mu.Unlock()
+					}
 				}
 			}
 		}
-	}
+	}()
+
+	// --- Zookeeper consumed group offset. ---
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if zkConsumerGroups, e5 := opt.zkClient.Consumergroups(); e5 != nil {
+			log.Printf("Cannot get consumer group(zookeeper). %v", e5)
+		} else {
+			for _, zkGroup := range zkConsumerGroups {
+				mu.Lock()
+				consumedOffsets[zkGroup.Name] = make(map[string]map[int32]ConsumedOffset)
+				mu.Unlock()
+
+				topics, _ := zkGroup.Topics()
+				for _, zkTopic := range topics {
+					mu.Lock()
+					consumedOffsets[zkGroup.Name][zkTopic.Name] = make(map[int32]ConsumedOffset)
+					mu.Unlock()
+
+					zkPartitions, _ := zkTopic.Partitions()
+					for _, zkPartition := range zkPartitions {
+						mu.Lock()
+						_consumedOffset := ConsumedOffset{ConsumerType: zkType}
+						consumedOffsets[zkGroup.Name][zkTopic.Name][zkPartition.ID] = _consumedOffset
+						mu.Unlock()
+
+						// Current consumed offset.
+						zkConsumedOffset, _ := zkGroup.FetchOffset(zkTopic.Name, zkPartition.ID)
+						mu.Lock()
+						_consumedOffset.ConsumedOffset = zkConsumedOffset
+						mu.Unlock()
+						// Lag
+						if zkConsumedOffset > 0 {
+							mu.Lock()
+							_consumedOffset.Lag = producedOffsets[zkTopic.Name][zkPartition.ID].NewestOffset - zkConsumedOffset
+							mu.Unlock()
+						}
+					}
+				}
+			}
+		}
+	}()
+	wg.Wait()
+
 	return consumedOffsets
 }
 
@@ -412,7 +466,7 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 	wg := sync.WaitGroup{}
 
 	producedTopicOffsets := make(map[string]map[int32]ProducedOffset)
-	for _, topic := range listTopicAll() {
+	for _, topic := range listKafkaTopicAll() {
 		//log.Printf("Fetching partition info for topics: %s ...", topic)
 
 		go func(topic string) {
