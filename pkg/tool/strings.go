@@ -41,6 +41,12 @@ func IsEmpty(str string) bool {
  * String regular expression match.
  */
 func Match(regex string, value string) bool {
+	if IsEmpty(regex) || IsEmpty(value) {
+		return false
+	}
+	if strings.TrimSpace(regex) == "*" {
+		return true
+	}
 	match, err := regexp.Match(regex, []byte(value))
 	if err != nil {
 		panic(fmt.Sprintf("Invalid regular expression for %s", regex))

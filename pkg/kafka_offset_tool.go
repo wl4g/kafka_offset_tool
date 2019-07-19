@@ -16,6 +16,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/urfave/cli"
@@ -55,6 +56,16 @@ type ConsumedOffset struct {
 	ProducedOffset
 }
 
+// Consumed offset toString
+func (consumedOffset *ConsumedOffset) memberAsString() string {
+	memberString := "None"
+	if consumedOffset.Member != nil {
+		memberString = fmt.Sprintf("%s/%s-%s", consumedOffset.Member.ClientId,
+			consumedOffset.Member.ClientHost, string(consumedOffset.Member.MemberMetadata))
+	}
+	return memberString
+}
+
 var (
 	opt = kafkaOption{}
 )
@@ -88,7 +99,7 @@ func main() {
 			},
 			Action: func(c *cli.Context) error {
 				//fmt.Fprintf(c.App.Writer, ":list-group--processing, %s", c.String("filter"))
-				tool.PrintResult("List of groups", listGroupIdAll())
+				tool.PrintResult("List of groups information.", listGroupIdAll())
 				return nil
 			},
 		},
@@ -107,7 +118,7 @@ func main() {
 				return clientConnect()
 			},
 			Action: func(c *cli.Context) error {
-				tool.PrintResult("List of topics", listTopic())
+				tool.PrintResult("List of topics information.", listTopic())
 				return nil
 			},
 		},
@@ -120,14 +131,40 @@ func main() {
 					Destination: &opt.brokers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "(default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
-				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "(default: *) --filter=myPrefix\\\\S*"},
-				cli.StringFlag{Name: "type,t", Value: "*", Usage: "(default: *) --type=zk|kf"},
+				cli.StringFlag{Name: "groupFilter", Value: "*", Usage: "(default: *) --groupFilter=myPrefix\\\\S*",
+					Destination: &opt.groupFilter},
+				cli.StringFlag{Name: "topicFilter", Value: "*", Usage: "(default: *) --topicFilter=myPrefix\\\\S*",
+					Destination: &opt.topicFilter},
+				cli.StringFlag{Name: "consumerFilter", Value: "*", Usage: "(default: *) --consumerFilter=myPrefix\\\\S*",
+					Destination: &opt.consumerFilter},
+				//cli.StringFlag{Name: "type,t", Value: "*", Usage: "(default: *) --type=zk|kf"},
 			},
 			Before: func(c *cli.Context) error {
 				return clientConnect()
 			},
 			Action: func(c *cli.Context) error {
-				getConsumedTopicPartitionOffsets()
+				buffer := bytes.Buffer{}
+				buffer.WriteString("================================ List of consumed information. ================================\n")
+				buffer.WriteString(fmt.Sprintf("\t\tGroup\t\t\t\t\t\tTopic\t\t\t\t\t\t\t\tPartition\tOldestOffset\tNewestOffset\tLag\tConsumedOffset\tMember\n"))
+				consumedOffset := getConsumedTopicPartitionOffsets()
+				for group, consumedTopicOffset := range consumedOffset {
+					if tool.Match(opt.groupFilter, group) {
+						for topic, partitionOffset := range consumedTopicOffset {
+							if tool.Match(opt.topicFilter, topic) {
+								for partition, consumedOffset := range partitionOffset {
+									memberString := consumedOffset.memberAsString()
+									if tool.Match(opt.consumerFilter, memberString) {
+										buffer.WriteString(fmt.Sprintf("%s\t%s\t\t\t\t\t\t%d\t\t\t\t%d\t\t\t\t%d\t\t\t%d\t\t%d\t\t\t%s\t",
+											group, topic, partition, consumedOffset.OldestOffset, consumedOffset.NewestOffset,
+											consumedOffset.Lag, consumedOffset.ConsumedOffset, memberString))
+										buffer.WriteString("\n")
+									}
+								}
+							}
+						}
+					}
+				}
+				fmt.Printf("\n%s\n", buffer.String())
 				return nil
 			},
 		},
@@ -187,7 +224,11 @@ func clientConnect() error {
 
 // List of brokers.
 func listBroker() []*sarama.Broker {
-	return opt.client.Brokers()
+	brokers := opt.client.Brokers()
+	if len(brokers) <= 0 {
+		log.Panicf("Cannot get brokers.")
+	}
+	return brokers
 }
 
 // List of groupId all on broker.
@@ -235,7 +276,7 @@ func getGroupMember(members map[string]*sarama.GroupMemberDescription,
 	for _, member := range members {
 		memberAssign, _ := member.GetMemberAssignment()
 		for _topic, partitions := range memberAssign.Topics {
-			if strings.Compare(_topic, topic) == 0 {
+			if _topic == topic {
 				for _, _partition := range partitions {
 					if _partition == partition {
 						return member
@@ -244,7 +285,7 @@ func getGroupMember(members map[string]*sarama.GroupMemberDescription,
 			}
 		}
 	}
-	return nil
+	return nil // Not member.
 }
 
 // Consumed topic partition offsets.
@@ -255,9 +296,6 @@ func getConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Consumed
 
 	// Consumed offsets of groups.
 	consumedOffsets := make(map[string]map[string]map[int32]ConsumedOffset)
-	if len(opt.client.Brokers()) <= 0 {
-		log.Panicf("Cannot get topic group information, no valid broker.")
-	}
 
 	for _, broker := range listBroker() {
 		groupIds := listGroupId(broker)
