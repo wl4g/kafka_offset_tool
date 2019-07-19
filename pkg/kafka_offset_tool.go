@@ -80,11 +80,15 @@ var (
 	opt = kafkaOption{}
 )
 
+func main() {
+	parseExecution()
+}
+
 /**
  * Parse usage options.</br>
  * See: https://github.com/urfave/cli#examples
  */
-func main() {
+func parseExecution() {
 	app := cli.NewApp()
 	app.Name = "KafkaOffsetTool"
 	app.Version = "v1.0.0"
