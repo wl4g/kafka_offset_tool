@@ -76,9 +76,10 @@ var (
  */
 func main() {
 	app := cli.NewApp()
+	app.Name = "KafkaOffsetTool"
 	app.Version = "v1.0.0"
 	app.Authors = []cli.Author{
-		{Name: "Wag sir", Email: "983708408@qq.com"},
+		{Name: "Wangl sir", Email: "983708408@qq.com"},
 	}
 	app.Description = "KafkaOffsetTool is a lightweight tool for Kafka offset operation and maintenance."
 	app.Copyright = "(c) 1999 Serious Enterprise"
