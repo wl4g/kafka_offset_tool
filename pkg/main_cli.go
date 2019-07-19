@@ -165,6 +165,7 @@ func parseExecution() {
 					}
 				}
 				tool.GridPrinf(dataset)
+				log.Printf("Processed kafka offset finished!")
 				return nil
 			},
 		},
