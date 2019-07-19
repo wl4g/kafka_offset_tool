@@ -63,17 +63,17 @@ type ConsumedOffset struct {
 
 // Consumed offset toString
 func (consumedOffset *ConsumedOffset) memberAsString() string {
-	memberString := "None"
 	if consumedOffset.Member != nil {
-		memberString = fmt.Sprintf("%s/%s-%s", consumedOffset.Member.ClientId,
-			consumedOffset.Member.ClientHost, string(consumedOffset.Member.MemberMetadata))
+		return fmt.Sprintf("%s%s", consumedOffset.Member.ClientId,
+			consumedOffset.Member.ClientHost)
 	}
-	return memberString
+	return None
 }
 
 const (
-	zkType = "zk"
-	kfType = "kf"
+	ZKType = "ZK"
+	KFType = "KF"
+	None   = "None"
 )
 
 var (
@@ -161,7 +161,7 @@ func main() {
 				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
 					tool.FatalExit("Arguments brokers,zkServers is required")
 				}
-				if !(tool.StringsContains([]string{zkType, kfType, "*"}, opt.consumerType)) {
+				if !(tool.StringsContains([]string{ZKType, KFType, "*"}, opt.consumerType)) {
 					tool.FatalExit("Invalid consumer type. %s", opt.consumerType)
 				}
 				return ensureConnected()
@@ -370,6 +370,11 @@ func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Con
 					consumedOffsets[group.GroupId][topic] = make(map[int32]ConsumedOffset)
 
 					for partition, offsetFetchResponseBlock := range partitions {
+						// for testing.
+						//if "archiving_stream_test" == group.GroupId && "safeclound_air" == topic && partition == 7 {
+						//	fmt.Printf("")
+						//}
+
 						err := offsetFetchResponseBlock.Err
 						if err != sarama.ErrNoError {
 							log.Printf("Error for partition: %d, %s", partition, err.Error())
@@ -377,9 +382,10 @@ func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Con
 						}
 
 						// Current consumed offset.
-						_consumedOffset := ConsumedOffset{ConsumerType: kfType}
-						consumedOffsets[group.GroupId][topic][partition] = _consumedOffset
+						mu.Lock()
+						_consumedOffset := ConsumedOffset{ConsumerType: KFType}
 						_consumedOffset.ConsumedOffset = offsetFetchResponseBlock.Offset
+						mu.Unlock()
 
 						// Lag of group partition.
 						if _producedOffset, e4 := producedOffsets[topic][partition]; e4 {
@@ -404,6 +410,7 @@ func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Con
 						// Consumed group member.
 						mu.Lock()
 						_consumedOffset.Member = getGroupMember(group.Members, topic, partition)
+						consumedOffsets[group.GroupId][topic][partition] = _consumedOffset
 						mu.Unlock()
 					}
 				}
@@ -432,8 +439,7 @@ func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Con
 					zkPartitions, _ := zkTopic.Partitions()
 					for _, zkPartition := range zkPartitions {
 						mu.Lock()
-						_consumedOffset := ConsumedOffset{ConsumerType: zkType}
-						consumedOffsets[zkGroup.Name][zkTopic.Name][zkPartition.ID] = _consumedOffset
+						_consumedOffset := ConsumedOffset{ConsumerType: ZKType}
 						mu.Unlock()
 
 						// Current consumed offset.
@@ -447,6 +453,10 @@ func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Con
 							_consumedOffset.Lag = producedOffsets[zkTopic.Name][zkPartition.ID].NewestOffset - zkConsumedOffset
 							mu.Unlock()
 						}
+
+						mu.Lock()
+						consumedOffsets[zkGroup.Name][zkTopic.Name][zkPartition.ID] = _consumedOffset
+						mu.Unlock()
 					}
 				}
 			}
@@ -484,7 +494,6 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 				//fmt.Printf("topic:%s, part:%d \n", topic, partition)
 				mu.Lock()
 				_topicOffset := ProducedOffset{}
-				producedTopicOffsets[topic][partition] = _topicOffset
 				mu.Unlock()
 
 				// Largest offset(logSize).
@@ -506,6 +515,10 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 					_topicOffset.OldestOffset = oldestOffset
 					mu.Unlock()
 				}
+
+				mu.Lock()
+				producedTopicOffsets[topic][partition] = _topicOffset
+				mu.Unlock()
 			}
 		}(topic)
 	}
