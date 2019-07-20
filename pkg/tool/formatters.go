@@ -16,8 +16,8 @@
 package tool
 
 import (
-	"fmt"
 	"github.com/bndr/gotabulate"
+	"log"
 )
 
 /**
@@ -37,5 +37,5 @@ func GridPrinf(heads []string, dataset [][]interface{}) {
 	// Set the Headers (optional)
 	tabulate.SetHeaders(heads)
 	// Print the result: grid, or simple
-	fmt.Println(tabulate.Render("grid"))
+	log.Printf("\n%s", tabulate.Render("grid"))
 }

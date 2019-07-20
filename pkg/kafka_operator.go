@@ -383,7 +383,7 @@ func resetKafkaOffset() {
 	var pom, _ = offsetManager.ManagePartition(opt.resetTopic, int32(opt.resetPartition))
 	pom.ResetOffset(int64(opt.resetOffset), "modified_meta")
 
-	log.Printf("Reset kafka direct offset: %d for topic: %s, group: %s, partition: %d Successfuly",
+	log.Printf("Reset kafka direct offset(%d) for topic(%s), group(%s), partition(%d) successfuly!",
 		opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
 }
 
@@ -393,6 +393,6 @@ func resetZookeeperOffset() {
 	//
 	tool.FatalExit("Un-support operation")
 
-	log.Printf("Reset zookeeper offset: %d for topic: %s, group: %s, partition: %d Successfuly",
+	log.Printf("Reset zookeeper offset(%d) for topic(%s), group(%s), partition(%d) successfuly!",
 		opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
 }
