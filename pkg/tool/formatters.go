@@ -37,5 +37,5 @@ func GridPrinf(title string, heads []string, dataset [][]interface{}) {
 	// Set the Headers (optional)
 	tabulate.SetHeaders(heads)
 	// Print the result: grid, or simple
-	log.Printf("==========%s==========\n%s", title, tabulate.Render("grid"))
+	log.Printf("========== %s ==========\n%s\n", title, tabulate.Render("grid"))
 }

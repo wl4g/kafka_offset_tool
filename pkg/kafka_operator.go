@@ -24,6 +24,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+	"time"
 )
 
 type ProducedOffset struct {
@@ -385,6 +386,9 @@ func resetKafkaOffset() {
 
 	log.Printf("Reset kafka direct offset(%d) for topic(%s), group(%s), partition(%d) successfuly!",
 		opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
+
+	// Sleep 1s, because the reset may not have been submitted
+	time.Sleep(2 * time.Second)
 }
 
 // Reset(zk) topic group partitions offset.
