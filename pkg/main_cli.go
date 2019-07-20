@@ -23,6 +23,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 )
 
 type kafkaOption struct {
@@ -139,6 +140,7 @@ func parseExecution() {
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
+				begin := time.Now().UnixNano()
 				dataset := make([][]interface{}, 0)
 				// Extract & analysis consumed partition offsets.
 				consumedOffset := analysisConsumedTopicPartitionOffsets()
@@ -164,8 +166,12 @@ func parseExecution() {
 						}
 					}
 				}
-				tool.GridPrinf(dataset)
-				log.Printf("Processed kafka offset finished!")
+				// Grid print.
+				tool.GridPrinf([]string{"Group", "Topic", "Partition", "OldestOffset",
+					"NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
+
+				end := time.Now().UnixNano()
+				log.Printf(" => Result: %d row processed (%d ms) finished!", len(dataset), (end-begin)/1e6)
 				return nil
 			},
 		},

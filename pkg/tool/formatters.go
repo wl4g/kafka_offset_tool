@@ -22,8 +22,10 @@ import (
 
 /**
  * Grid formatter print.
+ * @param heads table headers
+ * @param dataset table data row set.
  */
-func GridPrinf(dataset [][]interface{}) {
+func GridPrinf(heads []string, dataset [][]interface{}) {
 	// Set go-tabulate writer.
 	tabulate := gotabulate.Create(dataset)
 	// Set the Empty String (optional)
@@ -33,8 +35,7 @@ func GridPrinf(dataset [][]interface{}) {
 	// Set Max Cell Size
 	tabulate.SetMaxCellSize(16)
 	// Set the Headers (optional)
-	tabulate.SetHeaders([]string{"Group", "Topic", "Partition", "OldestOffset",
-		"NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"})
+	tabulate.SetHeaders(heads)
 	// Print the result: grid, or simple
 	fmt.Println(tabulate.Render("grid"))
 }
