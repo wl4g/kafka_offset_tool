@@ -170,8 +170,8 @@ func parseExecution() {
 				tool.GridPrinf([]string{"Group", "Topic", "Partition", "OldestOffset",
 					"NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
 
-				end := time.Now().UnixNano()
-				log.Printf(" => Result: %d row processed (%d ms) finished!", len(dataset), (end-begin)/1e6)
+				// Cost statistics.
+				log.Printf(" => Result: %d row processed (%f ms) finished!", len(dataset), tool.CostSecond(begin))
 				return nil
 			},
 		},
