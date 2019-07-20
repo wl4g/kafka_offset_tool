@@ -167,7 +167,7 @@ func parseExecution() {
 					}
 				}
 				// Grid print.
-				tool.GridPrinf([]string{"Group", "Topic", "Partition", "OldestOffset",
+				tool.GridPrinf("Consumer grouping describe list", []string{"Group", "Topic", "Partition", "OldestOffset",
 					"NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
 
 				// Cost statistics.

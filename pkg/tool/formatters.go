@@ -25,7 +25,7 @@ import (
  * @param heads table headers
  * @param dataset table data row set.
  */
-func GridPrinf(heads []string, dataset [][]interface{}) {
+func GridPrinf(title string, heads []string, dataset [][]interface{}) {
 	// Set go-tabulate writer.
 	tabulate := gotabulate.Create(dataset)
 	// Set the Empty String (optional)
@@ -37,5 +37,5 @@ func GridPrinf(heads []string, dataset [][]interface{}) {
 	// Set the Headers (optional)
 	tabulate.SetHeaders(heads)
 	// Print the result: grid, or simple
-	log.Printf("\n%s", tabulate.Render("grid"))
+	log.Printf("==========%s==========\n%s", title, tabulate.Render("grid"))
 }
