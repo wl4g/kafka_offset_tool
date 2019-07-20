@@ -41,7 +41,7 @@ type kafkaOption struct {
 
 	resetGroupId   string
 	resetTopic     string
-	resetPartition int
+	resetPartition int64
 	resetOffset    int64
 }
 
@@ -108,7 +108,7 @@ func parseExecution() {
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
-				tool.PrintResult("List of topics information.", listKafkaTopicAll())
+				tool.PrintResult("List of topics information.", listTopicAll())
 				return nil
 			},
 		},
@@ -184,14 +184,17 @@ func parseExecution() {
 				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
-				cli.StringFlag{Name: "group,g", Usage: "e.g. --group=myGroup", Destination: &opt.resetGroupId},
-				cli.StringFlag{Name: "topic,t", Usage: "e.g. --topic=myTopic", Destination: &opt.resetTopic},
-				cli.IntFlag{Name: "partition,p", Usage: "e.g. --partition=0", Destination: &opt.resetPartition},
-				cli.Int64Flag{Name: "offset,f", Usage: "e.g. --partition=0", Destination: &opt.resetOffset},
+				cli.StringFlag{Name: "resetGroup,g", Usage: "e.g. --resetGroup=myGroup", Destination: &opt.resetGroupId},
+				cli.StringFlag{Name: "resetTopic,t", Usage: "e.g. --resetTopic=myTopic", Destination: &opt.resetTopic},
+				cli.Int64Flag{Name: "resetPartition,p", Usage: "e.g. --resetPartition=0", Destination: &opt.resetPartition},
+				cli.Int64Flag{Name: "resetOffset,f", Usage: "e.g. --resetOffset=0", Destination: &opt.resetOffset},
 			},
 			Before: func(c *cli.Context) error {
 				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
 					tool.FatalExit("Arguments brokers,zkServers is required")
+				}
+				if tool.IsAnyBlank(opt.resetGroupId, opt.resetTopic) || opt.resetPartition == 0 || opt.resetOffset == 0 {
+					tool.FatalExit("Arguments resetTopic,resetPartition,resetOffset is required, And resetPartition,resetOffset must be greater than 0")
 				}
 				return ensureConnected()
 			},

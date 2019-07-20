@@ -92,7 +92,7 @@ func ensureConnected() error {
 }
 
 // List of brokers on kafka direct.
-func listKafkaBroker() []*sarama.Broker {
+func listBrokers() []*sarama.Broker {
 	brokers := opt.client.Brokers()
 	if len(brokers) <= 0 {
 		tool.FatalExit("Cannot get brokers.")
@@ -103,7 +103,7 @@ func listKafkaBroker() []*sarama.Broker {
 // List of groupId all on kafka broker direct.
 func listKafkaGroupIdAll() []string {
 	groupIdAll := make([]string, 0)
-	for _, broker := range listKafkaBroker() {
+	for _, broker := range listBrokers() {
 		for _, groupId := range listKafkaGroupId(broker) {
 			groupIdAll = append(groupIdAll, groupId)
 		}
@@ -130,7 +130,7 @@ func listKafkaGroupId(broker *sarama.Broker) []string {
 }
 
 // List of topics on kafka broker direct.
-func listKafkaTopicAll() []string {
+func listTopicAll() []string {
 	var topics, err = opt.client.Topics()
 	if err != nil {
 		tool.ErrorExit(err, "Cannot get topics.")
@@ -173,7 +173,7 @@ func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Con
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for _, broker := range listKafkaBroker() {
+		for _, broker := range listBrokers() {
 			groupIds := listKafkaGroupId(broker)
 
 			// Describe groups.
@@ -307,7 +307,7 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 	wg := sync.WaitGroup{}
 
 	producedTopicOffsets := make(map[string]map[int32]ProducedOffset)
-	for _, topic := range listKafkaTopicAll() {
+	for _, topic := range listTopicAll() {
 		//log.Printf("Fetching partition info for topics: %s ...", topic)
 
 		go func(topic string) {
@@ -358,13 +358,41 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 }
 
 // Reset topic group partitions offset.
-// See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
 func resetOffset() {
-	var offsetManager, _ = sarama.NewOffsetManagerFromClient(opt.resetGroupId, opt.client)
-	fmt.Print(offsetManager)
-	var pom, _ = offsetManager.ManagePartition(opt.resetTopic, int32(opt.resetPartition))
-	pom.ResetOffset(opt.resetOffset, "modified_meta")
+	// Check if the consumer type of the group is KAFKA direct(not zookeeper)?
+	isKafkaDirectConsumerGroup := false
+	for _, broker := range listBrokers() {
+		groupIds := listKafkaGroupId(broker)
+		if tool.StringsContains(groupIds, opt.resetGroupId) {
+			isKafkaDirectConsumerGroup = true
+			break
+		}
+	}
 
-	log.Printf("Reseted offset: %d, topic: %s, group: %s, partition: %d",
+	if isKafkaDirectConsumerGroup {
+		resetKafkaOffset()
+	} else {
+		resetZookeeperOffset()
+	}
+}
+
+// Reset(kafka) topic group partitions offset.
+// See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
+func resetKafkaOffset() {
+	var offsetManager, _ = sarama.NewOffsetManagerFromClient(opt.resetGroupId, opt.client)
+	var pom, _ = offsetManager.ManagePartition(opt.resetTopic, int32(opt.resetPartition))
+	pom.ResetOffset(int64(opt.resetOffset), "modified_meta")
+
+	log.Printf("Reset kafka direct offset: %d for topic: %s, group: %s, partition: %d Successfuly",
+		opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
+}
+
+// Reset(zk) topic group partitions offset.
+func resetZookeeperOffset() {
+	// TODO
+	//
+	tool.FatalExit("Un-support operation")
+
+	log.Printf("Reset zookeeper offset: %d for topic: %s, group: %s, partition: %d Successfuly",
 		opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
 }
