@@ -16,6 +16,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/krallistic/kazoo-go"
 	"github.com/urfave/cli"
@@ -45,6 +46,20 @@ type kafkaOption struct {
 	resetOffset    int64
 }
 
+const (
+	NAME    = "KafkaOffsetTool"
+	VERSION = "v1.0.0"
+	BANNER  = ` 
+_  __      __ _            ____   __  __          _     _______          _ 
+| |/ /     / _| |          / __ \ / _|/ _|        | |   |__   __|        | |
+| ' / __ _| |_| | ____ _  | |  | | |_| |_ ___  ___| |_     | | ___   ___ | |
+|  < / _' |  _| |/ / _' | | |  | |  _|  _/ __|/ _ \ __|    | |/ _ \ / _ \| |
+| . \ (_| | | |   < (_| | | |__| | | | | \__ \  __/ |_     | | (_) | (_) | |
+|_|\_\__,_|_| |_|\_\__,_|  \____/|_| |_| |___/\___|\__|    |_|\___/ \___/|_|
+`
+	WIKI = "https://github.com/wl4g/kafka_offset_tool/blob/master/README.md"
+)
+
 var (
 	opt = kafkaOption{}
 )
@@ -58,9 +73,14 @@ func main() {
  * See: https://github.com/urfave/cli#examples
  */
 func parseExecution() {
+	fmt.Printf("%s\n", BANNER)
+	fmt.Printf("wiki: %s\n", WIKI)
+	fmt.Printf("version: %s\n", VERSION)
+	fmt.Printf("time: %s\n\n", time.Now().Format(time.RFC3339))
+
 	app := cli.NewApp()
-	app.Name = "KafkaOffsetTool"
-	app.Version = "v1.0.0"
+	app.Name = NAME
+	app.Version = VERSION
 	app.Authors = []cli.Author{
 		{Name: "Wangl sir", Email: "983708408@qq.com"},
 	}

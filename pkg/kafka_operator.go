@@ -382,13 +382,17 @@ func resetOffset() {
 func resetKafkaOffset() {
 	var offsetManager, _ = sarama.NewOffsetManagerFromClient(opt.resetGroupId, opt.client)
 	var pom, _ = offsetManager.ManagePartition(opt.resetTopic, int32(opt.resetPartition))
-	pom.ResetOffset(int64(opt.resetOffset), "modified_meta")
 
-	log.Printf("Reset kafka direct offset(%d) for topic(%s), group(%s), partition(%d) successfuly!",
-		opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
+	log.Printf("Resetting kafka direct consumer group(%s) topic(%s) partition(%d) offset(%d) ...",
+		opt.resetGroupId, opt.resetTopic, opt.resetPartition, opt.resetOffset)
+	pom.ResetOffset(int64(opt.resetOffset), "modified_meta")
 
 	// Sleep 1s, because the reset may not have been submitted
 	time.Sleep(2 * time.Second)
+	defer pom.Close()
+
+	log.Printf("Reset kafka direct offset(%d) for group(%s), topic(%s), partition(%d) completed!",
+		opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
 }
 
 // Reset(zk) topic group partitions offset.
