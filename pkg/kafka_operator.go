@@ -401,6 +401,8 @@ func resetZookeeperOffset() {
 	//
 	tool.FatalExit("Un-support operation")
 
+	//opt.zkClient.Topic("").Partitions()[0]
+
 	log.Printf("Reset zookeeper offset(%d) for topic(%s), group(%s), partition(%d) successfuly!",
 		opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
 }
