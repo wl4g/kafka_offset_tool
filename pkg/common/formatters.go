@@ -16,8 +16,8 @@
 package common
 
 import (
+	"fmt"
 	"github.com/bndr/gotabulate"
-	"log"
 )
 
 /**
@@ -42,5 +42,5 @@ func GridPrinf(title string, heads []string, dataset [][]interface{}) {
 	}
 
 	// Print the result: grid, or simple.
-	log.Printf("========== %s ==========\n%s\n", title, printStr)
+	fmt.Printf("========== %s ==========\n%s\n", title, printStr)
 }
