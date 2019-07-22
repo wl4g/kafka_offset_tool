@@ -13,19 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package tool
+package common
 
-import (
-	"io/ioutil"
-	"os"
-)
+import "time"
 
-// Read file to string.
-func ReadFileToString(filePth string) string {
-	f, err := os.Open(filePth)
-	if err != nil {
-		panic(err)
-	}
-	s, _ := ioutil.ReadAll(f)
-	return string(s)
+/**
+ * Get cost second.
+ */
+func CostSecond(begin int64) float64 {
+	cost := (time.Now().UnixNano() - begin) / 1e6
+	return DecimalKeep2b(float64(cost))
 }

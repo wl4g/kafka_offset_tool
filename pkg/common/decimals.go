@@ -13,14 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package tool
+package common
 
-import "time"
+import (
+	"fmt"
+	"strconv"
+)
 
 /**
- * Get cost second.
+ * Keep 2bit decimal.
  */
-func CostSecond(begin int64) float64 {
-	cost := (time.Now().UnixNano() - begin) / 1e6
-	return DecimalKeep2b(float64(cost))
+func DecimalKeep2b(value float64) float64 {
+	value, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", value), 64)
+	return value
 }

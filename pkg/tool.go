@@ -20,7 +20,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/krallistic/kazoo-go"
 	"github.com/urfave/cli"
-	"kafka_offset_tool/pkg/tool"
+	"kafka_offset_tool/pkg/common"
 	"log"
 	"os"
 	"strconv"
@@ -71,6 +71,8 @@ func main() {
 /**
  * Parse usage options.</br>
  * See: https://github.com/urfave/cli#examples
+ * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
+ * @date 19-07-20
  */
 func parseExecution() {
 	fmt.Printf("%s\n", BANNER)
@@ -82,9 +84,9 @@ func parseExecution() {
 	app.Name = NAME
 	app.Version = VERSION
 	app.Authors = []cli.Author{
-		{Name: "Wangl sir", Email: "983708408@qq.com"},
+		{Name: "Wag sir", Email: "wanglsir@gmail.com,983708408@qq.com"},
 	}
-	app.Description = "KafkaOffsetTool is a lightweight tool for Kafka offset operation and maintenance."
+	app.Description = "KafkaOffsetTool is a lightweight common for Kafka offset operation and maintenance."
 	app.Copyright = "(c) 1999 Serious Enterprise"
 	app.Commands = cli.Commands{
 		{
@@ -99,14 +101,14 @@ func parseExecution() {
 				cli.StringFlag{Name: "groupFilter,f", Value: "*", Usage: "e.g. --groupFilter=myPrefix\\\\S*"},
 			},
 			Before: func(c *cli.Context) error {
-				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
-					tool.FatalExit("Arguments brokers,zkServers is required")
+				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
+					common.FatalExit("Arguments brokers,zkServers is required")
 				}
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
 				//fmt.Fprintf(c.App.Writer, ":list-group--processing, %s", c.String("filter"))
-				tool.PrintResult("List of groups information.", listKafkaGroupIdAll())
+				common.PrintResult("List of groups information.", listKafkaGroupIdAll())
 				return nil
 			},
 		},
@@ -122,13 +124,13 @@ func parseExecution() {
 				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "e.g. --filter=myPrefix\\\\S*"},
 			},
 			Before: func(c *cli.Context) error {
-				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
-					tool.FatalExit("Arguments brokers,zkServers is required")
+				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
+					common.FatalExit("Arguments brokers,zkServers is required")
 				}
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
-				tool.PrintResult("List of topics information.", listTopicAll())
+				common.PrintResult("List of topics information.", listTopicAll())
 				return nil
 			},
 		},
@@ -151,11 +153,11 @@ func parseExecution() {
 					Destination: &opt.consumerType},
 			},
 			Before: func(c *cli.Context) error {
-				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
-					tool.FatalExit("Arguments brokers,zkServers is required")
+				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
+					common.FatalExit("Arguments brokers,zkServers is required")
 				}
-				if !(tool.StringsContains([]string{ZKType, KFType, "*"}, opt.consumerType)) {
-					tool.FatalExit("Invalid consumer type. %s", opt.consumerType)
+				if !(common.StringsContains([]string{ZKType, KFType, "*"}, opt.consumerType)) {
+					common.FatalExit("Invalid consumer type. %s", opt.consumerType)
 				}
 				return ensureConnected()
 			},
@@ -165,12 +167,12 @@ func parseExecution() {
 				// Extract & analysis consumed partition offsets.
 				consumedOffset := analysisConsumedTopicPartitionOffsets()
 				for group, consumedTopicOffset := range consumedOffset {
-					if tool.Match(opt.groupFilter, group) {
+					if common.Match(opt.groupFilter, group) {
 						for topic, partitionOffset := range consumedTopicOffset {
-							if tool.Match(opt.topicFilter, topic) {
+							if common.Match(opt.topicFilter, topic) {
 								for partition, consumedOffset := range partitionOffset {
 									memberString := consumedOffset.memberAsString()
-									if tool.Match(opt.consumerFilter, memberString) {
+									if common.Match(opt.consumerFilter, memberString) {
 										// New print row.
 										row := []interface{}{group, topic,
 											strconv.FormatInt(int64(partition), 10),
@@ -187,11 +189,11 @@ func parseExecution() {
 					}
 				}
 				// Grid print.
-				tool.GridPrinf("Consumer grouping describe list", []string{"Group", "Topic", "Partition", "OldestOffset",
+				common.GridPrinf("Consumer grouping describe list", []string{"Group", "Topic", "Partition", "OldestOffset",
 					"NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
 
 				// Cost statistics.
-				log.Printf(" => Result: %d row processed (%f ms) finished!", len(dataset), tool.CostSecond(begin))
+				log.Printf(" => Result: %d row processed (%f ms) finished!", len(dataset), common.CostSecond(begin))
 				return nil
 			},
 		},
@@ -210,11 +212,11 @@ func parseExecution() {
 				cli.Int64Flag{Name: "resetOffset,f", Usage: "e.g. --resetOffset=0", Destination: &opt.resetOffset},
 			},
 			Before: func(c *cli.Context) error {
-				if tool.IsAnyBlank(opt.brokers, opt.zkServers) {
-					tool.FatalExit("Arguments brokers,zkServers is required")
+				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
+					common.FatalExit("Arguments brokers,zkServers is required")
 				}
-				if tool.IsAnyBlank(opt.resetGroupId, opt.resetTopic) || opt.resetPartition == 0 || opt.resetOffset == 0 {
-					tool.FatalExit("Arguments resetTopic,resetPartition,resetOffset is required, And resetPartition,resetOffset must be greater than 0")
+				if common.IsAnyBlank(opt.resetGroupId, opt.resetTopic) || opt.resetPartition == 0 || opt.resetOffset == 0 {
+					common.FatalExit("Arguments resetTopic,resetPartition,resetOffset is required, And resetPartition,resetOffset must be greater than 0")
 				}
 				return ensureConnected()
 			},

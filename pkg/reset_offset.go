@@ -17,44 +17,32 @@ package main
 
 import (
 	"github.com/Shopify/sarama"
-	"kafka_offset_tool/pkg/tool"
+	"kafka_offset_tool/pkg/common"
 	"log"
 	"time"
 )
 
-// Reset topic group partitions offset.
+/**
+ * Reset topic group partitions offset.
+ * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
+ * @date 19-07-20
+ */
 func resetOffset() {
-	// Check if the consumer type of the group is KAFKA direct(not zookeeper)?
-	isKafkaDirectConsumerGroup := false
-	for _, broker := range listBrokers() {
-		groupIds := listKafkaGroupId(broker)
-		if tool.StringsContains(groupIds, opt.resetGroupId) {
-			isKafkaDirectConsumerGroup = true
-			break
-		}
-	}
+	log.Printf("Checking reset offset range of group/topic/partition...")
 
-	if isKafkaDirectConsumerGroup {
-		resetKafkaOffset()
-	} else {
-		resetZookeeperOffset()
-	}
-}
-
-// Reset(kafka) topic group partitions offset.
-// See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
-func resetKafkaOffset() {
-	// Check reset offset range.
-	var _oldestOffset int64
-	var _consumedOffset int64
+	// Check reset offset range of consumer group/topic/partition.
+	match := false
 	for groupId, topicPartitionOffsets := range analysisConsumedTopicPartitionOffsets() {
 		if groupId == opt.resetGroupId {
 			for topic, partitionOffsets := range topicPartitionOffsets {
 				if topic == opt.resetTopic {
 					for partition, consumedOffset := range partitionOffsets {
 						if int64(partition) == opt.resetPartition {
-							_oldestOffset = consumedOffset.OldestOffset
-							_consumedOffset = consumedOffset.ConsumedOffset
+							match = true
+							if opt.resetOffset <= consumedOffset.OldestOffset || opt.resetOffset >= consumedOffset.ConsumedOffset {
+								common.FatalExit("Failed to reset offset, must be between %d and %d",
+									consumedOffset.OldestOffset, consumedOffset.ConsumedOffset)
+							}
 							break
 						}
 					}
@@ -62,18 +50,45 @@ func resetKafkaOffset() {
 			}
 		}
 	}
-	if opt.resetOffset <= _oldestOffset || opt.resetOffset >= _consumedOffset {
-		tool.FatalExit("Failed to reset offset, must be between %d and %d", _oldestOffset, _consumedOffset)
+	if !match { // Invalid group,topic,partition ?
+		common.FatalExit("Failed to reset offset, group(%s), topic(%s), partition(%s)",
+			opt.resetGroupId, opt.resetTopic, opt.resetPartition)
 	}
 
+	// Check if the consumer type of the group is KAFKA direct(not zookeeper)?
+	isKafkaDirectConsumerGroup := false
+	for _, broker := range listBrokers() {
+		groupIds := listKafkaGroupId(broker)
+		if common.StringsContains(groupIds, opt.resetGroupId) {
+			isKafkaDirectConsumerGroup = true
+			break
+		}
+	}
+
+	// Do resetting offset.
+	if isKafkaDirectConsumerGroup {
+		doResetKafkaOffset()
+	} else {
+		doResetZookeeperOffset()
+	}
+}
+
+/**
+ * Reset(kafka) topic group partitions offset.
+ * See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
+ * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
+ * @date 19-07-20
+ */
+func doResetKafkaOffset() {
 	// Handle reset offset.
 	var offsetManager, _ = sarama.NewOffsetManagerFromClient(opt.resetGroupId, opt.client)
 	var pom, _ = offsetManager.ManagePartition(opt.resetTopic, int32(opt.resetPartition))
 
+	// Do reset offset.
 	log.Printf("Resetting offset via kafka direct...")
 	pom.ResetOffset(int64(opt.resetOffset), "modified_meta")
 
-	// Sleep 1s, because the reset may not have been submitted
+	// Sleep 1s, because the reset may not have been committed.
 	time.Sleep(2 * time.Second)
 	defer pom.Close()
 
@@ -81,14 +96,27 @@ func resetKafkaOffset() {
 		opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
 }
 
-// Reset(zk) topic group partitions offset.
-func resetZookeeperOffset() {
-	// TODO
-	//
-	tool.FatalExit("Un-support operation")
+/**
+ * Reset(zookeeper) topic group partitions offset.
+ * See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
+ * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
+ * @date 19-07-22
+ */
+func doResetZookeeperOffset() {
+	log.Printf("Checking reset zookeeper offset range of group/topic/partition...")
 
-	//opt.zkClient.Topic("").Partitions()[0]
+	// Get reset consumer group.
+	_resetConsumerGroupId := opt.zkClient.Consumergroup(opt.resetGroupId)
+	if &_resetConsumerGroupId == nil {
+		common.FatalExit("Failed to reset offset, not exist groupId of (%s)", opt.resetGroupId)
+	}
 
-	log.Printf("Reset zookeeper offset(%d) for topic(%s), group(%s), partition(%d) successfuly!",
-		opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
+	// Do reset offset.
+	if err := _resetConsumerGroupId.CommitOffset(opt.resetTopic, int32(opt.resetPartition), opt.resetOffset); err == nil {
+		log.Printf("Reset zookeeper offset(%d) for topic(%s), group(%s), partition(%d) successfuly!",
+			opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
+	} else {
+		common.ErrorExit(err, "Failed to reset zookeeper offset(%d) for topic(%s), group(%s), partition(%d)",
+			opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
+	}
 }

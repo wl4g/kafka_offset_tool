@@ -18,7 +18,7 @@ package main
 import (
 	"fmt"
 	"github.com/Shopify/sarama"
-	"kafka_offset_tool/pkg/tool"
+	"kafka_offset_tool/pkg/common"
 	"log"
 	"sync"
 )
@@ -46,7 +46,11 @@ const (
 	None   = "None"
 )
 
-// Get consumer group member by topic and partition.
+/**
+ * Get consumer group member by topic and partition.
+ * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
+ * @date 19-07-20
+ */
 func getGroupMember(members map[string]*sarama.GroupMemberDescription,
 	topic string, partition int32) *sarama.GroupMemberDescription {
 	for _, member := range members {
@@ -64,7 +68,11 @@ func getGroupMember(members map[string]*sarama.GroupMemberDescription,
 	return nil // Not member.
 }
 
-// Analysis consumed topic partition offsets.
+/**
+ * Analysis consumed topic partition offsets.
+ * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
+ * @date 19-07-20
+ */
 func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]ConsumedOffset {
 	// Produced offsets of topics.
 	producedOffsets := getProducedTopicPartitionOffsets()
@@ -86,7 +94,7 @@ func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Con
 			// Describe groups.
 			describeGroups, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: groupIds})
 			if err != nil {
-				tool.ErrorExit(err, "Cannot get describe groupId: %s, %s", groupIds)
+				common.ErrorExit(err, "Cannot get describe groupId: %s, %s", groupIds)
 			}
 			for _, group := range describeGroups.Groups {
 				consumedOffsets[group.GroupId] = make(map[string]map[int32]ConsumedOffset)
@@ -102,7 +110,7 @@ func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Con
 				// Fetch offset all of group.
 				offsetFetchResponse, err := broker.FetchOffset(&offsetFetchRequest)
 				if err != nil {
-					tool.ErrorExit(err, "Cannot get offset of group: %s, %s", group.GroupId)
+					common.ErrorExit(err, "Cannot get offset of group: %s, %s", group.GroupId)
 				}
 				for topic, partitions := range offsetFetchResponse.Blocks {
 					consumedOffsets[group.GroupId][topic] = make(map[int32]ConsumedOffset)

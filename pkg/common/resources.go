@@ -13,17 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package tool
+package common
 
 import (
-	"fmt"
-	"strconv"
+	"io/ioutil"
+	"os"
 )
 
-/**
- * Keep 2bit decimal.
- */
-func DecimalKeep2b(value float64) float64 {
-	value, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", value), 64)
-	return value
+// Read file to string.
+func ReadFileToString(filePth string) string {
+	f, err := os.Open(filePth)
+	if err != nil {
+		panic(err)
+	}
+	s, _ := ioutil.ReadAll(f)
+	return string(s)
 }
