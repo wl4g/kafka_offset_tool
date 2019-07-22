@@ -2,7 +2,7 @@
  * Copyright 2017 ~ 2025 the original author or authors[983708408@qq.com].
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * you may not use this export except in compliance with the License.
  * You may obtain a copy of the License at
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
@@ -39,6 +39,9 @@ type kafkaOption struct {
 	topicFilter    string
 	consumerFilter string
 	consumerType   string
+
+	exportFile string // Export file path.
+	importFile string // Import file path.
 
 	resetGroupId   string
 	resetTopic     string
@@ -87,7 +90,7 @@ func parseExecution() {
 		{Name: "Wag sir", Email: "wanglsir@gmail.com,983708408@qq.com"},
 	}
 	app.Description = "KafkaOffsetTool is a lightweight common for Kafka offset operation and maintenance."
-	app.Copyright = "(c) 1999 Serious Enterprise"
+	app.Copyright = "(c) 2019 Serious Enterprise"
 	app.Commands = cli.Commands{
 		{
 			Name:        "list-group",
@@ -154,9 +157,9 @@ func parseExecution() {
 			},
 		},
 		{
-			Name:        "list-consumer",
-			Usage:       "list-consumer [OPTION]...",
-			Description: "Get the consumer list.",
+			Name:        "list-offset",
+			Usage:       "list-offset [OPTION]...",
+			Description: "Get the consumer offset list.",
 			Flags: []cli.Flag{
 				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &opt.brokers},
 				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
@@ -170,6 +173,7 @@ func parseExecution() {
 					Destination: &opt.consumerFilter},
 				cli.StringFlag{Name: "type,t", Value: "*", Usage: "e.g. --type=zk|kf|*",
 					Destination: &opt.consumerType},
+				cli.StringFlag{Name: "exportFile,e", Usage: "e.g. --export=myGroup-offset.json", Destination: &opt.exportFile},
 			},
 			Before: func(c *cli.Context) error {
 				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
@@ -182,38 +186,50 @@ func parseExecution() {
 			},
 			Action: func(c *cli.Context) error {
 				begin := time.Now().UnixNano()
-				dataset := make([][]interface{}, 0)
 				// Extract & analysis consumed partition offsets.
 				consumedOffset := analysisConsumedTopicPartitionOffsets()
-				for group, consumedTopicOffset := range consumedOffset {
-					if common.Match(opt.groupFilter, group) {
-						for topic, partitionOffset := range consumedTopicOffset {
-							if common.Match(opt.topicFilter, topic) {
-								for partition, consumedOffset := range partitionOffset {
-									memberString := consumedOffset.memberAsString()
-									if common.Match(opt.consumerFilter, memberString) {
-										// New print row.
-										row := []interface{}{group, topic,
-											strconv.FormatInt(int64(partition), 10),
-											strconv.FormatInt(consumedOffset.OldestOffset, 10),
-											strconv.FormatInt(consumedOffset.NewestOffset, 10),
-											strconv.FormatInt(consumedOffset.Lag, 10),
-											strconv.FormatInt(consumedOffset.ConsumedOffset, 10),
-											memberString, consumedOffset.ConsumerType}
-										dataset = append(dataset, row)
+
+				// Using export?
+				if common.IsBlank(opt.exportFile) {
+					dataset := make([][]interface{}, 0)
+					for group, consumedTopicOffset := range consumedOffset {
+						if common.Match(opt.groupFilter, group) {
+							for topic, partitionOffset := range consumedTopicOffset {
+								if common.Match(opt.topicFilter, topic) {
+									for partition, consumedOffset := range partitionOffset {
+										memberString := consumedOffset.memberAsString()
+										if common.Match(opt.consumerFilter, memberString) {
+											// New print row.
+											row := []interface{}{group, topic,
+												strconv.FormatInt(int64(partition), 10),
+												strconv.FormatInt(consumedOffset.OldestOffset, 10),
+												strconv.FormatInt(consumedOffset.NewestOffset, 10),
+												strconv.FormatInt(consumedOffset.Lag, 10),
+												strconv.FormatInt(consumedOffset.ConsumedOffset, 10),
+												memberString, consumedOffset.ConsumerType}
+											dataset = append(dataset, row)
+										}
 									}
 								}
 							}
 						}
 					}
-				}
-				// Grid print.
-				common.GridPrinf("Consumer grouping describe list", []string{"Group", "Topic", "Partition",
-					"OldestOffset", "NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
 
-				// Cost statistics.
-				log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset),
-					common.CostSecond(begin))
+					// Grid print.
+					common.GridPrinf("Consumer grouping describe list", []string{"Group", "Topic", "Partition",
+						"OldestOffset", "NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
+
+					// Cost statistics.
+					log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset),
+						common.CostSecond(begin))
+				} else {
+					data := []byte(common.ToJSONString(consumedOffset, true))
+					if err := common.WriteFile(opt.exportFile, data, false); err != nil {
+						common.ErrorExit(err, "Failed to export consumed offset to '%s'", opt.exportFile)
+					}
+					// Cost statistics.
+					log.Printf(" => Export to %s (%f second) finished!", opt.exportFile, common.CostSecond(begin))
+				}
 				return nil
 			},
 		},

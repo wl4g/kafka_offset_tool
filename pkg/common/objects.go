@@ -16,15 +16,22 @@
 package common
 
 import (
-	"fmt"
 	jsoniter "github.com/json-iterator/go"
+	"log"
 )
 
 // To JSON string.
-func ToJSONString(v interface{}) string {
+func ToJSONString(v interface{}, pretty bool) string {
+	if pretty {
+		if s, err := jsoniter.MarshalIndent(v, "", "  "); err != nil {
+			log.Printf("Marshal data error. %s", err)
+		} else {
+			return string(s)
+		}
+	}
 	s, err := jsoniter.MarshalToString(v)
 	if err != nil {
-		fmt.Printf("Marshal data error! %s", err)
+		log.Printf("Marshal data error. %s", err)
 	}
 	return s
 }

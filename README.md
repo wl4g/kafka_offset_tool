@@ -33,9 +33,9 @@ go run pkg/kafka_offset_tool.go --action list-group --brokers localhost:9092
 ./kafkaOffsetTool list-group --brokers=localhost:9092 --zkServers=localhost:2181 --type=kf
 ```
 
-- Get a list of all group consumer owner describe. e.g.
+- Get a list of all group consumer owner offset describe. e.g.
 ```
-./kafkaOffsetTool list-consumer --brokers=localhost:9092 --zkServers=localhost:2181
+./kafkaOffsetTool list-offset --brokers=localhost:9092 --zkServers=localhost:2181
 ```
 
 - Reset the specified groupId, topic, and partition offset. e.g.
