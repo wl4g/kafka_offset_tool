@@ -160,7 +160,7 @@ func parseExecution() {
 			Flags: []cli.Flag{
 				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &opt.brokers},
 				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
-				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g.  --version=0.10.0.0",
+				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "groupFilter", Value: "*", Usage: "e.g. --groupFilter=myPrefix\\\\S*",
 					Destination: &opt.groupFilter},

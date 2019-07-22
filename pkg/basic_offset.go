@@ -81,17 +81,15 @@ func listBrokers() []*sarama.Broker {
 }
 
 /**
- * List of (kafka direct and zk)groupId all on kafka broker direct.
+ * Has kafka direct or zookeeper group.
  * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
  * @date 19-07-18
  */
-func listGroupIdAll() map[string]string {
+func hasGroupType() (bool, bool) {
 	var (
-		groupIdAll = make(map[string]string, 0)
 		hasKfGroup = false
 		hasZkGroup = false
 	)
-
 	if strings.EqualFold(opt.consumerType, KFType) {
 		hasKfGroup = true
 	} else if strings.EqualFold(opt.consumerType, ZKType) {
@@ -102,6 +100,17 @@ func listGroupIdAll() map[string]string {
 	} else {
 		common.FatalExit("Failed to get list of groups, un-support consumer type %s", opt.consumerType)
 	}
+	return hasKfGroup, hasZkGroup
+}
+
+/**
+ * List of (kafka direct and zk)groupId all on kafka broker direct.
+ * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
+ * @date 19-07-18
+ */
+func listGroupIdAll() map[string]string {
+	var groupIdAll = make(map[string]string, 0)
+	hasKfGroup, hasZkGroup := hasGroupType()
 
 	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}

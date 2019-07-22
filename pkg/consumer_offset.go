@@ -84,131 +84,138 @@ func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Con
 	// Consumed offsets of groups.
 	consumedOffsets := make(map[string]map[string]map[int32]ConsumedOffset)
 
+	// Group type filter.
+	hasKfGroup, hasZkGroup := hasGroupType()
+
 	// --- Kafka direct consumed group offset. ---
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for _, broker := range listBrokers() {
-			groupIds := listKafkaGroupId(broker)
+	if hasKfGroup {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for _, broker := range listBrokers() {
+				groupIds := listKafkaGroupId(broker)
 
-			// Describe groups.
-			describeGroups, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: groupIds})
-			if err != nil {
-				common.ErrorExit(err, "Cannot get describe groupId: %s, %s", groupIds)
-			}
-			for _, group := range describeGroups.Groups {
-				consumedOffsets[group.GroupId] = make(map[string]map[int32]ConsumedOffset)
+				// Describe groups.
+				describeGroups, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: groupIds})
+				if err != nil {
+					common.ErrorExit(err, "Cannot get describe groupId: %s, %s", groupIds)
+				}
+				for _, group := range describeGroups.Groups {
+					consumedOffsets[group.GroupId] = make(map[string]map[int32]ConsumedOffset)
 
-				// Group consumer by topic and partition all.
-				offsetFetchRequest := sarama.OffsetFetchRequest{ConsumerGroup: group.GroupId, Version: 1}
-				for topic, partitions := range producedOffsets {
-					for partition := range partitions {
-						offsetFetchRequest.AddPartition(topic, partition)
+					// Group consumer by topic and partition all.
+					offsetFetchRequest := sarama.OffsetFetchRequest{ConsumerGroup: group.GroupId, Version: 1}
+					for topic, partitions := range producedOffsets {
+						for partition := range partitions {
+							offsetFetchRequest.AddPartition(topic, partition)
+						}
+					}
+
+					// Fetch offset all of group.
+					offsetFetchResponse, err := broker.FetchOffset(&offsetFetchRequest)
+					if err != nil {
+						common.ErrorExit(err, "Cannot get offset of group: %s, %s", group.GroupId)
+					}
+					for topic, partitions := range offsetFetchResponse.Blocks {
+						consumedOffsets[group.GroupId][topic] = make(map[int32]ConsumedOffset)
+
+						for partition, offsetFetchResponseBlock := range partitions {
+							// for testing.
+							//if "archiving_stream_test" == group.GroupId && "safeclound_air" == topic && partition == 7 {
+							//	fmt.Printf("")
+							//}
+
+							err := offsetFetchResponseBlock.Err
+							if err != sarama.ErrNoError {
+								log.Printf("Error for partition: %d, %s", partition, err.Error())
+								continue
+							}
+
+							// Current consumed offset.
+							mu.Lock()
+							_consumedOffset := ConsumedOffset{ConsumerType: KFType}
+							_consumedOffset.ConsumedOffset = offsetFetchResponseBlock.Offset
+							mu.Unlock()
+
+							// Lag of group partition.
+							if _producedOffset, e4 := producedOffsets[topic][partition]; e4 {
+								// If the topic is consumed by that consumer group, but no offsetInfo associated with the partition
+								// forcing lag to -1 to be able to alert on that
+								var lag int64
+								if offsetFetchResponseBlock.Offset == -1 {
+									lag = -1
+								} else {
+									lag = _producedOffset.NewestOffset - offsetFetchResponseBlock.Offset
+								}
+
+								mu.Lock()
+								_consumedOffset.Lag = lag
+								_consumedOffset.NewestOffset = _producedOffset.NewestOffset
+								_consumedOffset.OldestOffset = _producedOffset.OldestOffset
+								mu.Unlock()
+							} else {
+								log.Printf("No offsetInfo of topic: %s, partition: %d, %v", topic, partition, e4)
+							}
+
+							// Consumed group member.
+							mu.Lock()
+							_consumedOffset.Member = getGroupMember(group.Members, topic, partition)
+							consumedOffsets[group.GroupId][topic][partition] = _consumedOffset
+							mu.Unlock()
+						}
 					}
 				}
+			}
+		}()
+	}
 
-				// Fetch offset all of group.
-				offsetFetchResponse, err := broker.FetchOffset(&offsetFetchRequest)
-				if err != nil {
-					common.ErrorExit(err, "Cannot get offset of group: %s, %s", group.GroupId)
-				}
-				for topic, partitions := range offsetFetchResponse.Blocks {
-					consumedOffsets[group.GroupId][topic] = make(map[int32]ConsumedOffset)
+	// --- Zookeeper consumed group offset. ---
+	if hasZkGroup {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if zkConsumerGroups, e5 := opt.zkClient.Consumergroups(); e5 != nil {
+				log.Printf("Cannot get consumer group(zookeeper). %v", e5)
+			} else {
+				for _, zkGroup := range zkConsumerGroups {
+					mu.Lock()
+					consumedOffsets[zkGroup.Name] = make(map[string]map[int32]ConsumedOffset)
+					mu.Unlock()
 
-					for partition, offsetFetchResponseBlock := range partitions {
-						// for testing.
-						//if "archiving_stream_test" == group.GroupId && "safeclound_air" == topic && partition == 7 {
-						//	fmt.Printf("")
-						//}
-
-						err := offsetFetchResponseBlock.Err
-						if err != sarama.ErrNoError {
-							log.Printf("Error for partition: %d, %s", partition, err.Error())
-							continue
-						}
-
-						// Current consumed offset.
+					topics, _ := zkGroup.Topics()
+					for _, zkTopic := range topics {
 						mu.Lock()
-						_consumedOffset := ConsumedOffset{ConsumerType: KFType}
-						_consumedOffset.ConsumedOffset = offsetFetchResponseBlock.Offset
+						consumedOffsets[zkGroup.Name][zkTopic.Name] = make(map[int32]ConsumedOffset)
 						mu.Unlock()
 
-						// Lag of group partition.
-						if _producedOffset, e4 := producedOffsets[topic][partition]; e4 {
-							// If the topic is consumed by that consumer group, but no offsetInfo associated with the partition
-							// forcing lag to -1 to be able to alert on that
-							var lag int64
-							if offsetFetchResponseBlock.Offset == -1 {
-								lag = -1
-							} else {
-								lag = _producedOffset.NewestOffset - offsetFetchResponseBlock.Offset
+						zkPartitions, _ := zkTopic.Partitions()
+						for _, zkPartition := range zkPartitions {
+							mu.Lock()
+							_consumedOffset := ConsumedOffset{ConsumerType: ZKType}
+							mu.Unlock()
+
+							// Current consumed offset.
+							zkConsumedOffset, _ := zkGroup.FetchOffset(zkTopic.Name, zkPartition.ID)
+							mu.Lock()
+							_consumedOffset.ConsumedOffset = zkConsumedOffset
+							mu.Unlock()
+							// Lag
+							if zkConsumedOffset > 0 {
+								mu.Lock()
+								_consumedOffset.Lag = producedOffsets[zkTopic.Name][zkPartition.ID].NewestOffset - zkConsumedOffset
+								mu.Unlock()
 							}
 
 							mu.Lock()
-							_consumedOffset.Lag = lag
-							_consumedOffset.NewestOffset = _producedOffset.NewestOffset
-							_consumedOffset.OldestOffset = _producedOffset.OldestOffset
+							consumedOffsets[zkGroup.Name][zkTopic.Name][zkPartition.ID] = _consumedOffset
 							mu.Unlock()
-						} else {
-							log.Printf("No offsetInfo of topic: %s, partition: %d, %v", topic, partition, e4)
 						}
-
-						// Consumed group member.
-						mu.Lock()
-						_consumedOffset.Member = getGroupMember(group.Members, topic, partition)
-						consumedOffsets[group.GroupId][topic][partition] = _consumedOffset
-						mu.Unlock()
 					}
 				}
 			}
-		}
-	}()
+		}()
+	}
 
-	// --- Zookeeper consumed group offset. ---
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if zkConsumerGroups, e5 := opt.zkClient.Consumergroups(); e5 != nil {
-			log.Printf("Cannot get consumer group(zookeeper). %v", e5)
-		} else {
-			for _, zkGroup := range zkConsumerGroups {
-				mu.Lock()
-				consumedOffsets[zkGroup.Name] = make(map[string]map[int32]ConsumedOffset)
-				mu.Unlock()
-
-				topics, _ := zkGroup.Topics()
-				for _, zkTopic := range topics {
-					mu.Lock()
-					consumedOffsets[zkGroup.Name][zkTopic.Name] = make(map[int32]ConsumedOffset)
-					mu.Unlock()
-
-					zkPartitions, _ := zkTopic.Partitions()
-					for _, zkPartition := range zkPartitions {
-						mu.Lock()
-						_consumedOffset := ConsumedOffset{ConsumerType: ZKType}
-						mu.Unlock()
-
-						// Current consumed offset.
-						zkConsumedOffset, _ := zkGroup.FetchOffset(zkTopic.Name, zkPartition.ID)
-						mu.Lock()
-						_consumedOffset.ConsumedOffset = zkConsumedOffset
-						mu.Unlock()
-						// Lag
-						if zkConsumedOffset > 0 {
-							mu.Lock()
-							_consumedOffset.Lag = producedOffsets[zkTopic.Name][zkPartition.ID].NewestOffset - zkConsumedOffset
-							mu.Unlock()
-						}
-
-						mu.Lock()
-						consumedOffsets[zkGroup.Name][zkTopic.Name][zkPartition.ID] = _consumedOffset
-						mu.Unlock()
-					}
-				}
-			}
-		}
-	}()
 	wg.Wait()
-
 	return consumedOffsets
 }
