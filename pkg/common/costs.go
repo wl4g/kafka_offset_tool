@@ -21,6 +21,6 @@ import "time"
  * Get cost second.
  */
 func CostSecond(beginNano int64) float64 {
-	cost := (time.Now().UnixNano() - beginNano) / 1e9
-	return DecimalTrunc2b(float64(cost))
+	cost := float64(time.Now().UnixNano()-beginNano) / 1e9
+	return DecimalTrunc2b(cost)
 }

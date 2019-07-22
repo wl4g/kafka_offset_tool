@@ -107,7 +107,7 @@ func doResetZookeeperOffset() {
 
 	// Get reset consumer group.
 	_resetConsumerGroupId := opt.zkClient.Consumergroup(opt.resetGroupId)
-	if &_resetConsumerGroupId == nil {
+	if *&_resetConsumerGroupId == nil {
 		common.FatalExit("Failed to reset offset, not exist groupId of (%s)", opt.resetGroupId)
 	}
 

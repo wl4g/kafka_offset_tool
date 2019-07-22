@@ -189,11 +189,12 @@ func parseExecution() {
 					}
 				}
 				// Grid print.
-				common.GridPrinf("Consumer grouping describe list", []string{"Group", "Topic", "Partition", "OldestOffset",
-					"NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
+				common.GridPrinf("Consumer grouping describe list", []string{"Group", "Topic", "Partition",
+					"OldestOffset", "NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
 
 				// Cost statistics.
-				log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset), common.CostSecond(begin))
+				log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset),
+					common.CostSecond(begin))
 				return nil
 			},
 		},

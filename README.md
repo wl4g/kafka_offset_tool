@@ -12,4 +12,26 @@ go run pkg/kafka_offset_tool.go --action list-group --brokers localhost:9092
 - [Windows](scripts/build.bat)
 - [Linux](scripts/build.sh)
 
-#### Using of commands.
+#### Using of commands(Supporting two types of consumer operations: zookeeper and Kafka).
+- Get a list of all topics. e.g.
+```
+./kafkaOffsetTool list-topic --brokers=localhost:9092 --zkServers=localhost:2181
+```
+
+- Get a list of all consumer group. e.g.
+```
+./kafkaOffsetTool list-group --brokers=localhost:9092 --zkServers=localhost:2181
+```
+
+- Get a list of all group consumer owner describe. e.g.
+```
+./kafkaOffsetTool list-consumer --brokers=localhost:9092 --zkServers=localhost:2181
+```
+
+- Reset the specified groupId, topic, and partition offset. e.g.
+```
+./kafkaOffsetTool reset-offset --brokers=localhost:9092 --zkServers=localhost:2181 --resetGroup=myConsumerGroup1 --resetTopic=mytopic1 --resetPartition=0 --resetOffset=100
+```
+
+#### Welcome to raise bugs:
+Contact author: <wanglsir@gmail.com,983708408@qq.com>
