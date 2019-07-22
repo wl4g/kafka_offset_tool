@@ -98,9 +98,9 @@ func parseExecution() {
 				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. (default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
-				cli.StringFlag{Name: "groupFilter,f", Value: "*", Usage: "e.g. --groupFilter=myPrefix\\\\S*"},
-				cli.StringFlag{Name: "type,t", Value: "*", Usage: "e.g. --type=zk|kf|*",
-					Destination: &opt.consumerType},
+				cli.StringFlag{Name: "groupFilter,f", Value: "*", Usage: "e.g. --groupFilter=myPrefix\\\\S*",
+					Destination: &opt.groupFilter},
+				cli.StringFlag{Name: "type,t", Value: "*", Usage: "e.g. --type=zk|kf|*", Destination: &opt.consumerType},
 			},
 			Before: func(c *cli.Context) error {
 				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
@@ -117,8 +117,10 @@ func parseExecution() {
 				dataset := make([][]interface{}, 0)
 				for groupIdName, _consumerType := range listGroupIdAll() {
 					// New print row.
-					row := []interface{}{groupIdName, _consumerType}
-					dataset = append(dataset, row)
+					if common.Match(opt.groupFilter, groupIdName) {
+						row := []interface{}{groupIdName, _consumerType}
+						dataset = append(dataset, row)
+					}
 				}
 				// Grid print.
 				common.GridPrinf("Consumer group information", []string{"Group", "Type"}, dataset)

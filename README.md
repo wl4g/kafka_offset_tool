@@ -13,6 +13,16 @@ go run pkg/kafka_offset_tool.go --action list-group --brokers localhost:9092
 - [Linux](scripts/build.sh)
 
 #### Using of commands(Supporting two types of consumer operations: zookeeper and Kafka).
+- All command help. e.g
+```
+./kafkaOffsetTool --help
+```
+
+- Sub-command help. e.g
+```
+./kafkaOffsetTool list-group --help
+```
+
 - Get a list of all topics. e.g.
 ```
 ./kafkaOffsetTool list-topic --brokers=localhost:9092 --zkServers=localhost:2181
@@ -20,7 +30,7 @@ go run pkg/kafka_offset_tool.go --action list-group --brokers localhost:9092
 
 - Get a list of all consumer group. e.g.
 ```
-./kafkaOffsetTool list-group --brokers=localhost:9092 --zkServers=localhost:2181
+./kafkaOffsetTool list-group --brokers=localhost:9092 --zkServers=localhost:2181 --type=kf
 ```
 
 - Get a list of all group consumer owner describe. e.g.

@@ -26,16 +26,21 @@ import (
  * @param dataset table data row set.
  */
 func GridPrinf(title string, heads []string, dataset [][]interface{}) {
-	// Set go-tabulate writer.
-	tabulate := gotabulate.Create(dataset)
-	// Set the Empty String (optional)
-	tabulate.SetEmptyString("None")
-	// Set Align (Optional)
-	tabulate.SetAlign("center")
-	// Set Max Cell Size
-	tabulate.SetMaxCellSize(16)
-	// Set the Headers (optional)
-	tabulate.SetHeaders(heads)
-	// Print the result: grid, or simple
-	log.Printf("========== %s ==========\n%s\n", title, tabulate.Render("grid"))
+	printStr := "No result rows."
+	if dataset != nil && len(dataset) > 0 {
+		// Set go-tabulate writer.
+		tabulate := gotabulate.Create(dataset)
+		// Set the Empty String (optional)
+		tabulate.SetEmptyString("None")
+		// Set Align (Optional)
+		tabulate.SetAlign("center")
+		// Set Max Cell Size
+		tabulate.SetMaxCellSize(16)
+		// Set the Headers (optional)
+		tabulate.SetHeaders(heads)
+		printStr = tabulate.Render("grid")
+	}
+
+	// Print the result: grid, or simple.
+	log.Printf("========== %s ==========\n%s\n", title, printStr)
 }
