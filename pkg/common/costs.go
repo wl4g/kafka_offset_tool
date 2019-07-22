@@ -20,7 +20,7 @@ import "time"
 /**
  * Get cost second.
  */
-func CostSecond(begin int64) float64 {
-	cost := (time.Now().UnixNano() - begin) / 1e6
-	return DecimalKeep2b(float64(cost))
+func CostSecond(beginNano int64) float64 {
+	cost := (time.Now().UnixNano() - beginNano) / 1e9
+	return DecimalTrunc2b(float64(cost))
 }

@@ -193,7 +193,7 @@ func parseExecution() {
 					"NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
 
 				// Cost statistics.
-				log.Printf(" => Result: %d row processed (%f ms) finished!", len(dataset), common.CostSecond(begin))
+				log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset), common.CostSecond(begin))
 				return nil
 			},
 		},
