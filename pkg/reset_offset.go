@@ -69,8 +69,9 @@ func doResetOffset(groupConsumedOffsets GroupConsumedOffsets, resetGroupId strin
 						if int64(partition) == resetPartition {
 							match = true
 							if resetOffset <= consumedOffset.OldestOffset || resetOffset >= consumedOffset.ConsumedOffset {
-								common.FatalExit("Failed to reset offset, must be between %d and %d",
-									consumedOffset.OldestOffset, consumedOffset.ConsumedOffset)
+								common.FatalExit("Failed to reset offset, must be between %d and %d, %s/%s/%d/%d",
+									consumedOffset.OldestOffset, consumedOffset.ConsumedOffset, resetGroupId, resetTopic, resetPartition,
+									resetOffset)
 							}
 							break
 						}
