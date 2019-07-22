@@ -173,7 +173,7 @@ func parseExecution() {
 					Destination: &opt.consumerFilter},
 				cli.StringFlag{Name: "type,t", Value: "*", Usage: "e.g. --type=zk|kf|*",
 					Destination: &opt.consumerType},
-				cli.StringFlag{Name: "exportFile,e", Usage: "e.g. --export=myGroup-offset.json", Destination: &opt.exportFile},
+				cli.StringFlag{Name: "exportFile,o", Usage: "e.g. --exportFile=myGroup-offset.json", Destination: &opt.exportFile},
 			},
 			Before: func(c *cli.Context) error {
 				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
@@ -187,12 +187,12 @@ func parseExecution() {
 			Action: func(c *cli.Context) error {
 				begin := time.Now().UnixNano()
 				// Extract & analysis consumed partition offsets.
-				consumedOffset := analysisConsumedTopicPartitionOffsets()
+				groupConsumedOffset := analysisConsumedTopicPartitionOffsets(opt.consumerType)
 
 				// Using export?
 				if common.IsBlank(opt.exportFile) {
 					dataset := make([][]interface{}, 0)
-					for group, consumedTopicOffset := range consumedOffset {
+					for group, consumedTopicOffset := range groupConsumedOffset {
 						if common.Match(opt.groupFilter, group) {
 							for topic, partitionOffset := range consumedTopicOffset {
 								if common.Match(opt.topicFilter, topic) {
@@ -223,7 +223,7 @@ func parseExecution() {
 					log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset),
 						common.CostSecond(begin))
 				} else {
-					data := []byte(common.ToJSONString(consumedOffset, true))
+					data := []byte(common.ToJSONString(groupConsumedOffset, true))
 					if err := common.WriteFile(opt.exportFile, data, false); err != nil {
 						common.ErrorExit(err, "Failed to export consumed offset to '%s'", opt.exportFile)
 					}
@@ -246,13 +246,16 @@ func parseExecution() {
 				cli.StringFlag{Name: "resetTopic,t", Usage: "e.g. --resetTopic=myTopic", Destination: &opt.resetTopic},
 				cli.Int64Flag{Name: "resetPartition,p", Usage: "e.g. --resetPartition=0", Destination: &opt.resetPartition},
 				cli.Int64Flag{Name: "resetOffset,f", Usage: "e.g. --resetOffset=0", Destination: &opt.resetOffset},
+				cli.StringFlag{Name: "importFile,i", Usage: "e.g. --importFile=myGroup-offset.json", Destination: &opt.importFile},
 			},
 			Before: func(c *cli.Context) error {
 				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
 					common.FatalExit("Arguments brokers,zkServers is required")
 				}
-				if common.IsAnyBlank(opt.resetGroupId, opt.resetTopic) || opt.resetPartition == 0 || opt.resetOffset == 0 {
-					common.FatalExit("Arguments resetTopic,resetPartition,resetOffset is required, And resetPartition,resetOffset must be greater than 0")
+				if common.IsBlank(opt.importFile) {
+					if common.IsAnyBlank(opt.resetGroupId, opt.resetTopic) || opt.resetPartition == 0 || opt.resetOffset == 0 {
+						common.FatalExit("Arguments resetTopic,resetPartition,resetOffset is required, And resetPartition,resetOffset must be greater than 0")
+					}
 				}
 				return ensureConnected()
 			},

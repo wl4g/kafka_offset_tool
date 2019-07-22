@@ -28,18 +28,47 @@ import (
  * @date 19-07-20
  */
 func resetOffset() {
-	log.Printf("Checking reset offset range of group/topic/partition...")
+	log.Printf("Checking reset offset infor...")
 
 	// Check reset offset range of consumer group/topic/partition.
+	_groupConsumedOffsets := analysisConsumedTopicPartitionOffsets("*")
+
+	if !common.IsBlank(opt.importFile) {
+		resetGroupConsumedOffsets := GroupConsumedOffsets{}
+		common.ParseJSONFromFile(opt.importFile, &resetGroupConsumedOffsets)
+
+		for _resetGroup, consumedTopicOffset := range resetGroupConsumedOffsets {
+			for _resetTopic, partitionOffset := range consumedTopicOffset {
+				for _resetPartition, _resetConsumedOffset := range partitionOffset {
+					log.Printf("Batch import reset offset for %s/%s/%d/%d...", _resetGroup, _resetTopic,
+						_resetPartition, _resetConsumedOffset.ConsumedOffset)
+					doResetOffset(_groupConsumedOffsets, _resetGroup, _resetTopic, int64(_resetPartition),
+						_resetConsumedOffset.ConsumedOffset)
+				}
+			}
+		}
+	} else {
+		log.Printf("Simple reset offset for %s/%s/%d/%d...", opt.resetGroupId, opt.resetTopic, opt.resetPartition, opt.resetOffset)
+		doResetOffset(_groupConsumedOffsets, opt.resetGroupId, opt.resetTopic, opt.resetPartition, opt.resetOffset)
+	}
+}
+
+/**
+ * Do reset(kafka or zookeeper) topic group partitions offset.
+ * See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
+ * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
+ * @date 19-07-20
+ */
+func doResetOffset(groupConsumedOffsets GroupConsumedOffsets, resetGroupId string, resetTopic string, resetPartition int64, resetOffset int64) {
 	match := false
-	for groupId, topicPartitionOffsets := range analysisConsumedTopicPartitionOffsets() {
-		if groupId == opt.resetGroupId {
+	for groupId, topicPartitionOffsets := range groupConsumedOffsets {
+		if groupId == resetGroupId {
 			for topic, partitionOffsets := range topicPartitionOffsets {
-				if topic == opt.resetTopic {
+				if topic == resetTopic {
 					for partition, consumedOffset := range partitionOffsets {
-						if int64(partition) == opt.resetPartition {
+						if int64(partition) == resetPartition {
 							match = true
-							if opt.resetOffset <= consumedOffset.OldestOffset || opt.resetOffset >= consumedOffset.ConsumedOffset {
+							if resetOffset <= consumedOffset.OldestOffset || resetOffset >= consumedOffset.ConsumedOffset {
 								common.FatalExit("Failed to reset offset, must be between %d and %d",
 									consumedOffset.OldestOffset, consumedOffset.ConsumedOffset)
 							}
@@ -52,24 +81,24 @@ func resetOffset() {
 	}
 	if !match { // Invalid group,topic,partition ?
 		common.FatalExit("Failed to reset offset, group(%s), topic(%s), partition(%s)",
-			opt.resetGroupId, opt.resetTopic, opt.resetPartition)
+			resetGroupId, resetTopic, resetPartition)
 	}
 
 	// Check if the consumer type of the group is KAFKA direct(not zookeeper)?
 	isKafkaDirectConsumerGroup := false
 	for _, broker := range listBrokers() {
 		groupIds := listKafkaGroupId(broker)
-		if common.StringsContains(groupIds, opt.resetGroupId, false) {
+		if common.StringsContains(groupIds, resetGroupId, false) {
 			isKafkaDirectConsumerGroup = true
 			break
 		}
 	}
 
-	// Do resetting offset.
+	// Do reset specific offset.
 	if isKafkaDirectConsumerGroup {
-		doResetKafkaOffset()
+		doResetKafkaOffset(resetGroupId, resetTopic, resetPartition, resetOffset)
 	} else {
-		doResetZookeeperOffset()
+		doResetZookeeperOffset(resetGroupId, resetTopic, resetPartition, resetOffset)
 	}
 }
 
@@ -79,21 +108,21 @@ func resetOffset() {
  * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
  * @date 19-07-20
  */
-func doResetKafkaOffset() {
+func doResetKafkaOffset(resetGroupId string, resetTopic string, resetPartition int64, resetOffset int64) {
 	// Handle reset offset.
-	var offsetManager, _ = sarama.NewOffsetManagerFromClient(opt.resetGroupId, opt.client)
-	var pom, _ = offsetManager.ManagePartition(opt.resetTopic, int32(opt.resetPartition))
+	var offsetManager, _ = sarama.NewOffsetManagerFromClient(resetGroupId, opt.client)
+	var pom, _ = offsetManager.ManagePartition(resetTopic, int32(resetPartition))
 
 	// Do reset offset.
 	log.Printf("Resetting offset via kafka direct...")
-	pom.ResetOffset(int64(opt.resetOffset), "modified_meta")
+	pom.ResetOffset(int64(resetOffset), "modified_meta")
 
 	// Sleep 1s, because the reset may not have been committed.
 	time.Sleep(2 * time.Second)
 	defer pom.Close()
 
 	log.Printf("Reset kafka direct offset(%d) for group(%s), topic(%s), partition(%d) completed!",
-		opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
+		resetOffset, resetTopic, resetGroupId, resetPartition)
 }
 
 /**
@@ -102,21 +131,21 @@ func doResetKafkaOffset() {
  * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
  * @date 19-07-22
  */
-func doResetZookeeperOffset() {
+func doResetZookeeperOffset(resetGroupId string, resetTopic string, resetPartition int64, resetOffset int64) {
 	log.Printf("Checking reset zookeeper offset range of group/topic/partition...")
 
 	// Get reset consumer group.
-	_resetConsumerGroupId := opt.zkClient.Consumergroup(opt.resetGroupId)
+	_resetConsumerGroupId := opt.zkClient.Consumergroup(resetGroupId)
 	if *&_resetConsumerGroupId == nil {
-		common.FatalExit("Failed to reset offset, not exist groupId of (%s)", opt.resetGroupId)
+		common.FatalExit("Failed to reset offset, not exist groupId of (%s)", resetGroupId)
 	}
 
 	// Do reset offset.
-	if err := _resetConsumerGroupId.CommitOffset(opt.resetTopic, int32(opt.resetPartition), opt.resetOffset); err == nil {
+	if err := _resetConsumerGroupId.CommitOffset(resetTopic, int32(resetPartition), resetOffset); err == nil {
 		log.Printf("Reset zookeeper offset(%d) for topic(%s), group(%s), partition(%d) successfuly!",
-			opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
+			resetOffset, resetTopic, resetGroupId, resetPartition)
 	} else {
 		common.ErrorExit(err, "Failed to reset zookeeper offset(%d) for topic(%s), group(%s), partition(%d)",
-			opt.resetOffset, opt.resetTopic, opt.resetGroupId, opt.resetPartition)
+			resetOffset, resetTopic, resetGroupId, resetPartition)
 	}
 }

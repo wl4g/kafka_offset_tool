@@ -20,6 +20,12 @@ import (
 	"log"
 )
 
+// Parse json from file.
+func ParseJSONFromFile(path string, v interface{}) {
+	data := []byte(ReadFileToString(path))
+	jsoniter.Unmarshal(data, v)
+}
+
 // To JSON string.
 func ToJSONString(v interface{}, pretty bool) string {
 	if pretty {

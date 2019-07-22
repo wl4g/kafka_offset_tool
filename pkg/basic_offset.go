@@ -85,20 +85,20 @@ func listBrokers() []*sarama.Broker {
  * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
  * @date 19-07-18
  */
-func hasGroupType() (bool, bool) {
+func hasGroupType(consumerType string) (bool, bool) {
 	var (
 		hasKfGroup = false
 		hasZkGroup = false
 	)
-	if strings.EqualFold(opt.consumerType, KFType) {
+	if strings.EqualFold(consumerType, KFType) {
 		hasKfGroup = true
-	} else if strings.EqualFold(opt.consumerType, ZKType) {
+	} else if strings.EqualFold(consumerType, ZKType) {
 		hasZkGroup = true
-	} else if strings.EqualFold(opt.consumerType, "*") {
+	} else if strings.EqualFold(consumerType, "*") {
 		hasKfGroup = true
 		hasZkGroup = true
 	} else {
-		common.FatalExit("Failed to get list of groups, un-support consumer type %s", opt.consumerType)
+		common.FatalExit("Failed to fetch groups, un-support consumer type %s", consumerType)
 	}
 	return hasKfGroup, hasZkGroup
 }
@@ -110,7 +110,7 @@ func hasGroupType() (bool, bool) {
  */
 func listGroupIdAll() map[string]string {
 	var groupIdAll = make(map[string]string, 0)
-	hasKfGroup, hasZkGroup := hasGroupType()
+	hasKfGroup, hasZkGroup := hasGroupType(opt.consumerType)
 
 	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
@@ -182,6 +182,14 @@ func listKafkaGroupIdAll() []string {
 func listKafkaGroupId(broker *sarama.Broker) []string {
 	if err := broker.Open(opt.client.Config()); err != nil && err != sarama.ErrAlreadyConnected {
 		common.ErrorExit(err, "Cannot connect to brokerID: %d, %s", broker.ID())
+	}
+
+	// Loop check connected.
+	for true {
+		connected, _ := broker.Connected()
+		if connected {
+			break
+		}
 	}
 
 	// Get groupIds.

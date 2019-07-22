@@ -23,6 +23,8 @@ import (
 	"sync"
 )
 
+type GroupConsumedOffsets map[string]map[string]map[int32]ConsumedOffset
+
 type ConsumedOffset struct {
 	ConsumedOffset int64
 	Lag            int64
@@ -73,7 +75,7 @@ func getGroupMember(members map[string]*sarama.GroupMemberDescription,
  * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
  * @date 19-07-20
  */
-func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]ConsumedOffset {
+func analysisConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOffsets {
 	// Produced offsets of topics.
 	producedOffsets := getProducedTopicPartitionOffsets()
 	log.Printf("Extract & analysis group topic partition offset relation...")
@@ -82,10 +84,10 @@ func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Con
 	wg := sync.WaitGroup{}
 
 	// Consumed offsets of groups.
-	consumedOffsets := make(map[string]map[string]map[int32]ConsumedOffset)
+	consumedOffsets := make(GroupConsumedOffsets)
 
 	// Group type filter.
-	hasKfGroup, hasZkGroup := hasGroupType()
+	hasKfGroup, hasZkGroup := hasGroupType(consumerType)
 
 	// --- Kafka direct consumed group offset. ---
 	if hasKfGroup {
@@ -93,7 +95,9 @@ func analysisConsumedTopicPartitionOffsets() map[string]map[string]map[int32]Con
 		go func() {
 			defer wg.Done()
 			for _, broker := range listBrokers() {
+				mu.Lock()
 				groupIds := listKafkaGroupId(broker)
+				mu.Unlock()
 
 				// Describe groups.
 				describeGroups, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: groupIds})
