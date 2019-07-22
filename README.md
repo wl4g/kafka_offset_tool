@@ -38,9 +38,19 @@ go run pkg/kafka_offset_tool.go --action list-group --brokers localhost:9092
 ./kafkaOffsetTool list-offset --brokers=localhost:9092 --zkServers=localhost:2181
 ```
 
+- Get a list of all group consumer owner offset describe export to file. e.g.
+```
+./kafkaOffsetTool list-offset --brokers=localhost:9092 --zkServers=localhost:2181 --exportFile=myTopic_offset.json
+```
+
 - Reset the specified groupId, topic, and partition offset. e.g.
 ```
 ./kafkaOffsetTool reset-offset --brokers=localhost:9092 --zkServers=localhost:2181 --resetGroup=myConsumerGroup1 --resetTopic=mytopic1 --resetPartition=0 --resetOffset=100
+```
+
+- Reset the specified groupId, topic, and partition offset from import file. e.g.
+```
+./kafkaOffsetTool reset-offset --brokers=localhost:9092 --zkServers=localhost:2181 --importFile=myTopic_offset.json
 ```
 
 #### Welcome to raise bugs:
