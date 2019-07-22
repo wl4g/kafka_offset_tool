@@ -108,7 +108,7 @@ func parseExecution() {
 			},
 			Action: func(c *cli.Context) error {
 				//fmt.Fprintf(c.App.Writer, ":list-group--processing, %s", c.String("filter"))
-				common.PrintResult("List of groups information.", listKafkaGroupIdAll())
+				common.PrintResult("List of groups information.", listGroupIdAll())
 				return nil
 			},
 		},

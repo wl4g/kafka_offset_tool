@@ -23,6 +23,7 @@ import (
 	"log"
 	"math/rand"
 	"strings"
+	"sync"
 )
 
 /**
@@ -80,22 +81,71 @@ func listBrokers() []*sarama.Broker {
 }
 
 /**
- * List of groupId all on kafka broker direct.
+ * List of (kafka direct and zk)groupId all on kafka broker direct.
  * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
  * @date 19-07-18
  */
-func listKafkaGroupIdAll() []string {
+func listGroupIdAll() []string {
 	groupIdAll := make([]string, 0)
-	for _, broker := range listBrokers() {
-		for _, groupId := range listKafkaGroupId(broker) {
-			groupIdAll = append(groupIdAll, groupId)
+	mu := sync.Mutex{}
+	wg := sync.WaitGroup{}
+
+	// Kafka direct groups.
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
+		for _, _zkGroupIds := range listZkGroupIdAll() {
+			mu.Lock()
+			groupIdAll = append(groupIdAll, _zkGroupIds)
+			mu.Unlock()
 		}
-	}
+	}()
+	// Zookeeper groups.
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
+		for _, _zkGroupIds := range listKafkaGroupIdAll() {
+			groupIdAll = append(groupIdAll, _zkGroupIds)
+		}
+	}()
+	wg.Wait()
 	return groupIdAll
 }
 
 /**
- * List of groupIds on kafka broker direct.
+ * List of zookeeper groupId all on kafka broker direct.
+ * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
+ * @date 19-07-18
+ */
+func listZkGroupIdAll() []string {
+	groupIds := make([]string, 0)
+	if _consumerGroups, e1 := opt.zkClient.Consumergroups(); e1 != nil {
+		common.ErrorExit(e1, "Failed to get consumer group by zk!")
+	} else {
+		for _, _consumerGroup := range _consumerGroups {
+			groupIds = append(groupIds, _consumerGroup.Name)
+		}
+	}
+	return groupIds
+}
+
+/**
+ * List of kafka direct groupId all on kafka broker direct.
+ * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
+ * @date 19-07-18
+ */
+func listKafkaGroupIdAll() []string {
+	groupIds := make([]string, 0)
+	for _, broker := range listBrokers() {
+		for _, groupId := range listKafkaGroupId(broker) {
+			groupIds = append(groupIds, groupId)
+		}
+	}
+	return groupIds
+}
+
+/**
+ * List of kafka direct groupId on kafka broker direct.
  * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
  * @date 19-07-20
  */
