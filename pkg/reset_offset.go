@@ -59,7 +59,7 @@ func resetOffset() {
 	isKafkaDirectConsumerGroup := false
 	for _, broker := range listBrokers() {
 		groupIds := listKafkaGroupId(broker)
-		if common.StringsContains(groupIds, opt.resetGroupId) {
+		if common.StringsContains(groupIds, opt.resetGroupId, false) {
 			isKafkaDirectConsumerGroup = true
 			break
 		}

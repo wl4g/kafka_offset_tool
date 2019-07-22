@@ -99,16 +99,33 @@ func parseExecution() {
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. (default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "groupFilter,f", Value: "*", Usage: "e.g. --groupFilter=myPrefix\\\\S*"},
+				cli.StringFlag{Name: "type,t", Value: "*", Usage: "e.g. --type=zk|kf|*",
+					Destination: &opt.consumerType},
 			},
 			Before: func(c *cli.Context) error {
 				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
 					common.FatalExit("Arguments brokers,zkServers is required")
 				}
+				if !common.StringsContains([]string{ZKType, KFType, "*"}, opt.consumerType, true) {
+					common.FatalExit("Failed to get list of groups, un-support consumer type %s",
+						opt.consumerType)
+				}
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
-				//fmt.Fprintf(c.App.Writer, ":list-group--processing, %s", c.String("filter"))
-				common.PrintResult("List of groups information.", listGroupIdAll())
+				begin := time.Now().UnixNano()
+				dataset := make([][]interface{}, 0)
+				for groupIdName, _consumerType := range listGroupIdAll() {
+					// New print row.
+					row := []interface{}{groupIdName, _consumerType}
+					dataset = append(dataset, row)
+				}
+				// Grid print.
+				common.GridPrinf("Consumer group information", []string{"Group", "Type"}, dataset)
+
+				// Cost statistics.
+				log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset),
+					common.CostSecond(begin))
 				return nil
 			},
 		},
@@ -149,14 +166,14 @@ func parseExecution() {
 					Destination: &opt.topicFilter},
 				cli.StringFlag{Name: "consumerFilter", Value: "*", Usage: "e.g. --consumerFilter=myPrefix\\\\S*",
 					Destination: &opt.consumerFilter},
-				cli.StringFlag{Name: "type,t", Value: "*", Usage: "e.g. --type=zk|kf",
+				cli.StringFlag{Name: "type,t", Value: "*", Usage: "e.g. --type=zk|kf|*",
 					Destination: &opt.consumerType},
 			},
 			Before: func(c *cli.Context) error {
 				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
 					common.FatalExit("Arguments brokers,zkServers is required")
 				}
-				if !(common.StringsContains([]string{ZKType, KFType, "*"}, opt.consumerType)) {
+				if !(common.StringsContains([]string{ZKType, KFType, "*"}, opt.consumerType, true)) {
 					common.FatalExit("Invalid consumer type. %s", opt.consumerType)
 				}
 				return ensureConnected()

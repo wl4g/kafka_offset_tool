@@ -85,29 +85,50 @@ func listBrokers() []*sarama.Broker {
  * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
  * @date 19-07-18
  */
-func listGroupIdAll() []string {
-	groupIdAll := make([]string, 0)
+func listGroupIdAll() map[string]string {
+	var (
+		groupIdAll = make(map[string]string, 0)
+		hasKfGroup = false
+		hasZkGroup = false
+	)
+
+	if strings.EqualFold(opt.consumerType, KFType) {
+		hasKfGroup = true
+	} else if strings.EqualFold(opt.consumerType, ZKType) {
+		hasZkGroup = true
+	} else if strings.EqualFold(opt.consumerType, "*") {
+		hasKfGroup = true
+		hasZkGroup = true
+	} else {
+		common.FatalExit("Failed to get list of groups, un-support consumer type %s", opt.consumerType)
+	}
+
 	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
-
 	// Kafka direct groups.
-	go func() {
+	if hasKfGroup {
 		wg.Add(1)
-		defer wg.Done()
-		for _, _zkGroupIds := range listZkGroupIdAll() {
-			mu.Lock()
-			groupIdAll = append(groupIdAll, _zkGroupIds)
-			mu.Unlock()
-		}
-	}()
+		go func() {
+			defer wg.Done()
+			for _, kfGroupId := range listKafkaGroupIdAll() {
+				mu.Lock()
+				groupIdAll[kfGroupId] = KFType
+				mu.Unlock()
+			}
+		}()
+	}
+
 	// Zookeeper groups.
-	go func() {
+	if hasZkGroup {
 		wg.Add(1)
-		defer wg.Done()
-		for _, _zkGroupIds := range listKafkaGroupIdAll() {
-			groupIdAll = append(groupIdAll, _zkGroupIds)
-		}
-	}()
+		go func() {
+			defer wg.Done()
+			for _, zkGroupId := range listZkGroupIdAll() {
+				groupIdAll[zkGroupId] = ZKType
+			}
+		}()
+	}
+
 	wg.Wait()
 	return groupIdAll
 }

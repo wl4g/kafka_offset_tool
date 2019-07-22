@@ -23,9 +23,13 @@ import (
 )
 
 // Check whether the string contains
-func StringsContains(values []string, search string) bool {
+func StringsContains(values []string, search string, ignoreCase bool) bool {
 	for i := 0; i < len(values); i++ {
-		if strings.TrimSpace(values[i]) == strings.TrimSpace(search) {
+		s1 := strings.TrimSpace(values[i])
+		s2 := strings.TrimSpace(search)
+		if ignoreCase && strings.EqualFold(s1, s2) {
+			return true
+		} else if s1 == s2 {
 			return true
 		}
 	}
