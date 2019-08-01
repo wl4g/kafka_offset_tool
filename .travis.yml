@@ -14,4 +14,4 @@ before_install:
 
 script:
 #- make check_license style unused test lint check_assets
-- git diff --exit-code
+#- git diff --exit-code
