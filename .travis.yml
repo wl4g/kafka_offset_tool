@@ -10,9 +10,10 @@ go_import_path: https://github.com/wl4g/kafka_offset_tool
 # This ensures that the local cache is filled before running the CI.
 # travis_retry retries the command 3 times if it fails as we've experienced
 # random issues on Travis.
-#before_install:
+before_install:
 #- travis_retry make deps
+- travis_retry make
 
 script:
-#- make check_license style unused test lint check_assets
-#- git diff --exit-code
+- make check_license style unused test lint check_assets
+- git diff --exit-code
