@@ -14,5 +14,5 @@ go_import_path: https://github.com/wl4g/kafka_offset_tool
 #- travis_retry make deps
 
 script:
-- make check_license style unused test lint check_assets
-- git diff --exit-code
+#- make check_license style unused test lint check_assets
+#- git diff --exit-code
