@@ -18,7 +18,7 @@ notifications:
       - 983708408@qq.com
       - 1154635107@qq.com
     on_success: always # default: change
-    on_failure: always # default: change
+    on_failure: always # default: always
 
 script:
 #- make check_license style unused test lint check_assets
