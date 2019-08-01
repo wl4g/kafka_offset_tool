@@ -12,6 +12,7 @@ before_install:
 #- travis_retry make deps
 - travis_retry make
 
+# See: https://docs.travis-ci.com/user/notifications
 notifications:
   email:
     recipients:
