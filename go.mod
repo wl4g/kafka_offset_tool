@@ -1,4 +1,4 @@
-module kafka_offset_tool
+module github.com/wl4g/kafka_offset_tool
 
 go 1.12
 
