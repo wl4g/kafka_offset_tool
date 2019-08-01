@@ -20,7 +20,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/krallistic/kazoo-go"
 	"github.com/urfave/cli"
-	"kafka_offset_tool/pkg/common"
+	"github.com/wl4g/kafka_offset_tool/pkg/common"
 	"log"
 	"os"
 	"strconv"

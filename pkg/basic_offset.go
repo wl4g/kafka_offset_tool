@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/krallistic/kazoo-go"
-	"kafka_offset_tool/pkg/common"
+	"github.com/wl4g/kafka_offset_tool/pkg/common"
 	"log"
 	"math/rand"
 	"strings"

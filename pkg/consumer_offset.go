@@ -18,7 +18,7 @@ package main
 import (
 	"fmt"
 	"github.com/Shopify/sarama"
-	"kafka_offset_tool/pkg/common"
+	"github.com/wl4g/kafka_offset_tool/pkg/common"
 	"log"
 	"sync"
 )
