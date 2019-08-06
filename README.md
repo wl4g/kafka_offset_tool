@@ -1,6 +1,6 @@
 KafkaOffsetTool is a lightweight tool for Kafka offset operation and maintenance
 
-![Build Status](https://travis-ci.org/wl4g/kafka_offset_tool.svg)
+[![Build Status](https://travis-ci.org/wl4g/kafka_offset_tool.svg?branch=master)](https://travis-ci.org/wl4g/kafka_offset_tool.svg)
 
 ## Quick start
 
