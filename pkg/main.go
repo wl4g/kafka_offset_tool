@@ -17,14 +17,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/Shopify/sarama"
-	"github.com/krallistic/kazoo-go"
-	"github.com/urfave/cli"
-	"github.com/wl4g/kafka_offset_tool/pkg/common"
 	"log"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/Shopify/sarama"
+	"github.com/krallistic/kazoo-go"
+	"github.com/urfave/cli"
+	"github.com/wl4g/kafka_offset_tool/pkg/common"
 )
 
 type kafkaOption struct {
@@ -68,16 +69,16 @@ var (
 )
 
 func main() {
-	parseExecution()
+	runCommand()
 }
 
 /**
  * Parse usage options.</br>
  * See: https://github.com/urfave/cli#examples
- * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
+ * @author Wang.sir <wanglsir@gmail.com, 983708408@qq.com>
  * @date 19-07-20
  */
-func parseExecution() {
+func runCommand() {
 	fmt.Printf("%s\n", BANNER)
 	fmt.Printf("wiki: %s\n", WIKI)
 	fmt.Printf("version: %s\n", VERSION)
@@ -87,18 +88,18 @@ func parseExecution() {
 	app.Name = NAME
 	app.Version = VERSION
 	app.Authors = []cli.Author{
-		{Name: "Wag sir", Email: "wanglsir@gmail.com,983708408@qq.com"},
+		{Name: "Wanglsir", Email: "Wanglsir@gmail.com, 983708408@qq.com"},
 	}
 	app.Description = "KafkaOffsetTool is a lightweight common for Kafka offset operation and maintenance."
-	app.Copyright = "(c) 2019 Serious Enterprise"
+	app.Copyright = "(c) 2021 Serious Enterprise"
 	app.Commands = cli.Commands{
 		{
-			Name:        "list-group",
-			Usage:       "list-group [OPTION]...",
-			Description: "Get the group list.",
+			Name:        "get-group",
+			Usage:       "get-group [OPTIONS]...",
+			Description: "Gets the kafka consumer groups information.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &opt.brokers},
-				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
+				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Value: "127.0.0.1:9092", Destination: &opt.brokers},
+				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Value: "127.0.0.1:2181", Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. (default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "groupFilter,f", Value: "*", Usage: "e.g. --groupFilter=myPrefix\\\\S*",
@@ -135,12 +136,12 @@ func parseExecution() {
 			},
 		},
 		{
-			Name:        "list-topic",
-			Usage:       "list-topic [OPTION]...",
-			Description: "Get the topic list.",
+			Name:        "get-topic",
+			Usage:       "get-topic [OPTIONS]...",
+			Description: "Gets the kafka topics information.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &opt.brokers},
-				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
+				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Value: "127.0.0.1:9092", Destination: &opt.brokers},
+				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Value: "127.0.0.1:2181", Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. (default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "e.g. --filter=myPrefix\\\\S*"},
@@ -157,12 +158,12 @@ func parseExecution() {
 			},
 		},
 		{
-			Name:        "list-offset",
-			Usage:       "list-offset [OPTION]...",
-			Description: "Get the consumer offset list.",
+			Name:        "get-offset",
+			Usage:       "get-offset [OPTIONS]...",
+			Description: "Gets the kafka consumer group offsets information.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &opt.brokers},
-				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
+				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Value: "127.0.0.1:9092", Destination: &opt.brokers},
+				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Value: "127.0.0.1:2181", Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "groupFilter", Value: "*", Usage: "e.g. --groupFilter=myPrefix\\\\S*",
@@ -234,12 +235,12 @@ func parseExecution() {
 			},
 		},
 		{
-			Name:        "reset-offset",
-			Usage:       "reset-offset [OPTION]...",
-			Description: "Reset the offset of the specified grouping topic partition.",
+			Name:        "set-offset",
+			Usage:       "set-offset [OPTIONS]...",
+			Description: "set the offset of the specified kafka group topic partition.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &opt.brokers},
-				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &opt.zkServers},
+				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Value: "127.0.0.1:9092", Destination: &opt.brokers},
+				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Value: "127.0.0.1:2181", Destination: &opt.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. --version=0.10.0.0",
 					Destination: &opt.kafkaVersion},
 				cli.StringFlag{Name: "resetGroup,g", Usage: "e.g. --resetGroup=myGroup", Destination: &opt.resetGroupId},

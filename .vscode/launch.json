@@ -11,6 +11,7 @@
             "mode": "auto",
             "program": "${fileDirname}/../pkg/",
             "env": {},
+            // "args": ["list-group"]
             "args": [""]
         }
     ]

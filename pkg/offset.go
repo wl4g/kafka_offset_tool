@@ -16,10 +16,11 @@
 package main
 
 import (
-	"github.com/Shopify/sarama"
-	"github.com/wl4g/kafka_offset_tool/pkg/common"
 	"log"
 	"time"
+
+	"github.com/Shopify/sarama"
+	"github.com/wl4g/kafka_offset_tool/pkg/common"
 )
 
 /**
@@ -34,6 +35,7 @@ func resetOffset() {
 	_groupConsumedOffsets := analysisConsumedTopicPartitionOffsets("*")
 
 	if !common.IsBlank(opt.importFile) {
+		log.Printf("Import file reset offset from %s ...", opt.importFile)
 		resetGroupConsumedOffsets := GroupConsumedOffsets{}
 		common.ParseJSONFromFile(opt.importFile, &resetGroupConsumedOffsets)
 
