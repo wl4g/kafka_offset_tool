@@ -12,12 +12,13 @@ rem distributed under the License is distributed on an "AS IS" BASIS,
 rem WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 rem See the License for the specific language governing permissions and
 rem limitations under the License.
+setlocal enabledelayedexpansion
+rem Using pushd popd to set BASE_DIR to the absolute path
+pushd %~dp0..\..
+set BASE_DIR=%CD%
+popd
 
-rem -------------------------------------------------------------------------
-rem --- Compiling Mac and Linux 64-bit executable programs under Windows. ---
-rem -------------------------------------------------------------------------
 SET CGO_ENABLED=0
-rem SET GOOS=darwin
-SET GOOS=linux
+SET GOOS=windows
 SET GOARCH=amd64
-go build -o kafkaOffsetTool ..\pkg\
+go build -v -a -ldflags '-s -w' -gcflags="all=-trimpath=$(pwd)" -asmflags="all=-trimpath=$(pwd)" -o $(pwd)/kafkaOffsetTool %BASE_DIR%

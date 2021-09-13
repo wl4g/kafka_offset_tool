@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# -------------------------------------------------------------------------
-# --- Compiling Mac and Windows 64-bit executable programs under Linux. ---
-# -------------------------------------------------------------------------
-cd ../pkg/ && CGO_ENABLED=0 GOARCH=amd64
-#GOOS=darwin go build -o kafkaOffsetTool
-GOOS=windows go build -o kafkaOffsetTool
+BASE_DIR=$(cd "`dirname $0`"; pwd)
+sudo mkdir -p ${BASE_DIR}/bin
+
+CGO_ENABLED=0
+GOARCH=amd64
+GOOS=linux # darwin
+go build -v -a -ldflags '-s -w' -gcflags="all=-trimpath=$(pwd)" -asmflags="all=-trimpath=$(pwd)" -o $(pwd)/kafkaOffsetTool ${BASE_DIR}
