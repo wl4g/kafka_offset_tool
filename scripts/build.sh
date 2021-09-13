@@ -13,9 +13,9 @@
 # limitations under the License.
 
 BASE_DIR=$(cd "`dirname $0`"; pwd)
-sudo mkdir -p ${BASE_DIR}/bin
+sudo mkdir -p ${BASE_DIR}/../bin
 
 CGO_ENABLED=0
 GOARCH=amd64
 GOOS=linux # darwin
-go build -v -a -ldflags '-s -w' -gcflags="all=-trimpath=$(pwd)" -asmflags="all=-trimpath=$(pwd)" -o $(pwd)/kafkaOffsetTool ${BASE_DIR}
+go build -v -a -ldflags '-s -w' -gcflags="all=-trimpath=$(pwd)" -asmflags="all=-trimpath=$(pwd)" -o ${BASE_DIR}/../bin/kafkaOffsetTool_${GOOS}_${GOARCH} ${BASE_DIR}/../pkg/
