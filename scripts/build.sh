@@ -15,12 +15,14 @@
 BASE_DIR=$(cd "`dirname $0`"; pwd)
 sudo mkdir -p ${BASE_DIR}/../bin
 
-CGO_ENABLED=0
-GOARCH=amd64
-GOOS=linux # darwin
-BUILD_VERSION=$(git branch|grep '*'|sed 's/* //g')
+export CGO_ENABLED=0
+# ubuntu:/lib/i386-linux-gnu/libc.so.6, centos:/usr/lib64/libc.so
+export CGO_LDFLAGS="-Xlinker -rpath=$(whereis libc.so|sed 's/ /\n/g'|grep libc.so) -static"
+export GOARCH=amd64
+export GOOS=linux # darwin
+export BUILD_VERSION=$(git branch|grep '*'|sed 's/* //g')
 
-go build \-v -a -ldflags '-s -w' \
+go build -v -a -ldflags '-s -w' \
 -gcflags="all=-trimpath=$(pwd)" \
 -asmflags="all=-trimpath=$(pwd)" \
 -o ${BASE_DIR}/../bin/kafkaOffsetTool_${BUILD_VERSION}_${GOOS}_${GOARCH} ${BASE_DIR}/../pkg/
