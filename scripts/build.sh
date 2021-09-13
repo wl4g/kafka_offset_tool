@@ -18,4 +18,9 @@ sudo mkdir -p ${BASE_DIR}/../bin
 CGO_ENABLED=0
 GOARCH=amd64
 GOOS=linux # darwin
-go build -v -a -ldflags '-s -w' -gcflags="all=-trimpath=$(pwd)" -asmflags="all=-trimpath=$(pwd)" -o ${BASE_DIR}/../bin/kafkaOffsetTool_${GOOS}_${GOARCH} ${BASE_DIR}/../pkg/
+BUILD_VERSION=$(git branch|grep '*'|sed 's/* //g')
+
+go build \-v -a -ldflags '-s -w' \
+-gcflags="all=-trimpath=$(pwd)" \
+-asmflags="all=-trimpath=$(pwd)" \
+-o ${BASE_DIR}/../bin/kafkaOffsetTool_${BUILD_VERSION}_${GOOS}_${GOARCH} ${BASE_DIR}/../pkg/
