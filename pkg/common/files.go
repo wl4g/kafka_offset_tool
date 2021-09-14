@@ -36,7 +36,7 @@ func WriteFile(path string, data []byte, append bool) error {
 		file.Write(data)
 		defer file.Close()
 	} else {
-		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 		if err != nil {
 			return err
 		}
