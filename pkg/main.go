@@ -100,7 +100,7 @@ func runCommand() {
 				cli.StringFlag{Name: "zkServers,z", Value: "127.0.0.1:2181", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &option.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. (default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &option.kafkaVersion},
-				cli.StringFlag{Name: "groupFilter,f", Value: "*", Usage: "e.g. --groupFilter=myPrefix\\\\S*",
+				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "GroupId regex filter. e.g. --filter='(^console\\S+)'",
 					Destination: &option.groupFilter},
 				cli.StringFlag{Name: "type,t", Value: "*", Usage: "e.g. --type=zk|kf|*", Destination: &option.consumerType},
 			},
@@ -142,7 +142,7 @@ func runCommand() {
 				cli.StringFlag{Name: "zkServers,z", Value: "127.0.0.1:2181", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &option.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. (default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &option.kafkaVersion},
-				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "e.g. --filter=myPrefix\\\\S*"},
+				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "Topic regex filter. e.g. --filter='(^console\\S+)'"},
 			},
 			Before: func(c *cli.Context) error {
 				if common.IsAnyBlank(option.brokers, option.zkServers) {
@@ -151,7 +151,14 @@ func runCommand() {
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
-				common.PrintResult("List of topics information.", listTopicAll())
+				dataset := make([]string, 0)
+				for _, topicName := range listTopicAll() {
+					// New print row.
+					if common.Match(option.topicFilter, topicName) {
+						dataset = append(dataset, topicName)
+					}
+				}
+				common.PrintResult("List of topics information.", dataset)
 				return nil
 			},
 		},
@@ -164,11 +171,11 @@ func runCommand() {
 				cli.StringFlag{Name: "zkServers,z", Value: "127.0.0.1:2181", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &option.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. --version=0.10.0.0",
 					Destination: &option.kafkaVersion},
-				cli.StringFlag{Name: "groupFilter", Value: "*", Usage: "e.g. --groupFilter=myPrefix\\\\S*",
+				cli.StringFlag{Name: "groupFilter", Value: "*", Usage: "GroupId regex filter. e.g. --groupFilter='(^console\\S+)'",
 					Destination: &option.groupFilter},
-				cli.StringFlag{Name: "topicFilter", Value: "*", Usage: "e.g. --topicFilter=myPrefix\\\\S*",
+				cli.StringFlag{Name: "topicFilter", Value: "*", Usage: "Topic regex filter. e.g. --topicFilter='(^console\\S+)'",
 					Destination: &option.topicFilter},
-				cli.StringFlag{Name: "consumerFilter", Value: "*", Usage: "e.g. --consumerFilter=myPrefix\\\\S*",
+				cli.StringFlag{Name: "consumerFilter", Value: "*", Usage: "Consumer regex filter. e.g. --consumerFilter='(^console\\S+)'",
 					Destination: &option.consumerFilter},
 				cli.StringFlag{Name: "type,t", Value: "*", Usage: "e.g. --type=zk|kf|*",
 					Destination: &option.consumerType},
@@ -188,32 +195,33 @@ func runCommand() {
 				// Extract & analysis consumed partition offsets.
 				groupConsumedOffset := analysisConsumedTopicPartitionOffsets(option.consumerType)
 
-				// Using export?
-				if common.IsBlank(option.outputFile) {
-					dataset := make([][]interface{}, 0)
-					for group, consumedTopicOffset := range groupConsumedOffset {
-						if common.Match(option.groupFilter, group) {
-							for topic, partitionOffset := range consumedTopicOffset {
-								if common.Match(option.topicFilter, topic) {
-									for partition, consumedOffset := range partitionOffset {
-										memberString := consumedOffset.memberAsString()
-										if common.Match(option.consumerFilter, memberString) {
-											// New print row.
-											row := []interface{}{group, topic,
-												strconv.FormatInt(int64(partition), 10),
-												strconv.FormatInt(consumedOffset.OldestOffset, 10),
-												strconv.FormatInt(consumedOffset.NewestOffset, 10),
-												strconv.FormatInt(consumedOffset.Lag, 10),
-												strconv.FormatInt(consumedOffset.ConsumedOffset, 10),
-												memberString, consumedOffset.ConsumerType}
-											dataset = append(dataset, row)
-										}
+				// Filtering records.
+				dataset := make([][]interface{}, 0)
+				for group, consumedTopicOffset := range groupConsumedOffset {
+					if common.Match(option.groupFilter, group) {
+						for topic, partitionOffset := range consumedTopicOffset {
+							if common.Match(option.topicFilter, topic) {
+								for partition, consumedOffset := range partitionOffset {
+									memberString := consumedOffset.memberAsString()
+									if common.Match(option.consumerFilter, memberString) {
+										// New print row.
+										row := []interface{}{group, topic,
+											strconv.FormatInt(int64(partition), 10),
+											strconv.FormatInt(consumedOffset.OldestOffset, 10),
+											strconv.FormatInt(consumedOffset.NewestOffset, 10),
+											strconv.FormatInt(consumedOffset.Lag, 10),
+											strconv.FormatInt(consumedOffset.ConsumedOffset, 10),
+											memberString, consumedOffset.ConsumerType}
+										dataset = append(dataset, row)
 									}
 								}
 							}
 						}
 					}
+				}
 
+				// Using export?
+				if common.IsBlank(option.outputFile) {
 					// Grid print.
 					common.GridPrinf("Consumer grouping describe list", []string{"Group", "Topic", "Partition",
 						"OldestOffset", "NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
@@ -222,7 +230,7 @@ func runCommand() {
 					log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset),
 						common.CostSecond(begin))
 				} else {
-					data := []byte(common.ToJSONString(groupConsumedOffset, true))
+					data := []byte(common.ToJSONString(dataset, true))
 					if err := common.WriteFile(option.outputFile, data, false); err != nil {
 						common.ErrorExit(err, "Failed to export consumed offset to '%s'", option.outputFile)
 					}
