@@ -142,7 +142,7 @@ func runCommand() {
 				cli.StringFlag{Name: "zkServers,z", Value: "127.0.0.1:2181", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &option.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. (default: 0.10.0.0) --version=0.10.0.0",
 					Destination: &option.kafkaVersion},
-				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "Topic regex filter. e.g. --filter='(^console\\S+)'"},
+				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "Topic regex filter. e.g. --filter='(^console\\S+)'", Destination: &option.topicFilter},
 			},
 			Before: func(c *cli.Context) error {
 				if common.IsAnyBlank(option.brokers, option.zkServers) {
@@ -151,11 +151,13 @@ func runCommand() {
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
+				var i = int(0)
 				dataset := make([]string, 0)
 				for _, topicName := range listTopicAll() {
 					// New print row.
 					if common.Match(option.topicFilter, topicName) {
-						dataset = append(dataset, topicName)
+						i++
+						dataset = append(dataset, fmt.Sprintf("%s: %s", strconv.Itoa(i), topicName))
 					}
 				}
 				common.PrintResult("List of topics information.", dataset)
