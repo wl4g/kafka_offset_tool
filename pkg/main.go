@@ -64,7 +64,7 @@ type kafkaOption struct {
 	setPartition int64
 	setOffset    int64
 
-	increment int64
+	increment string
 }
 
 var (
@@ -288,13 +288,13 @@ func runCommand() {
 			Usage:       "offset-calc [OPTIONS]...",
 			Description: "Tool commands for calculator kafka offsets in file.",
 			Flags: []cli.Flag{
-				cli.Int64Flag{Name: "increment,I", Usage: "The increment used to calculate the offset, which can be negative. e.g. --I=1000", Destination: &option.increment},
+				cli.StringFlag{Name: "increment,I", Usage: "The increment used to calculate the offset, which can be negative. e.g. --I=1000", Destination: &option.increment},
 				cli.StringFlag{Name: "inputFile,i", Usage: "Load the offset configuration to set from the local file path. e.g. --inputFile=myoffset1.json", Destination: &option.inputFile},
 				cli.StringFlag{Name: "outputFile,o", Usage: "Output the calculated configuration to the local file. e.g. --outputFile=myoffset2.json", Destination: &option.outputFile},
 			},
 			Before: func(c *cli.Context) error {
-				if common.IsAnyBlank(option.inputFile, option.outputFile) {
-					common.FatalExit("Invalid arguments '--inputFile,-i/--outputFile,-o' is required")
+				if common.IsAnyBlank(option.inputFile, option.outputFile) || option.increment == "" {
+					common.FatalExit("Invalid arguments '--inputFile,-i/--outputFile,-o/--increment,-I' is required")
 				}
 				return nil
 			},
@@ -303,12 +303,16 @@ func runCommand() {
 				common.ParseJSONFromFile(option.inputFile, &input)
 
 				// calculation offset
+				incr, err := strconv.ParseInt(option.increment, 10, 64)
+				if err != nil {
+					common.ErrorExit(err, "Failed to calculation offsets.")
+				}
 				for group, topics := range input {
 					for topic, partitions := range topics {
 						for partition, consumedOffset := range partitions {
 							// increment offset to new value
-							var beforeChanged = consumedOffset.ConsumedOffset
-							var afterChanged = beforeChanged + option.increment
+							beforeChanged := consumedOffset.ConsumedOffset
+							afterChanged := beforeChanged + incr
 							if afterChanged > 0 {
 								consumedOffset.ConsumedOffset = afterChanged
 								// Change element
