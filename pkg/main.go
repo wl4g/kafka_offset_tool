@@ -89,6 +89,7 @@ func runCommand() {
 	fmt.Printf("time: %s\n\n", time.Now().Format(time.RFC3339))
 
 	app := cli.NewApp()
+	app.HideVersion = true
 	app.Commands = cli.Commands{
 		{
 			Name:        "get-group",
