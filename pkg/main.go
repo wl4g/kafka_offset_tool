@@ -290,6 +290,8 @@ func runCommand() {
 							consumedOffset.ConsumedOffset += option.increment
 							log.Printf("Calculating to group: %s, topic: %s, partition: %s, %v => %v",
 								group, topic, strconv.FormatInt(int64(partition), 10), beforeChanged, consumedOffset.ConsumedOffset)
+							// Change element
+							partitions[partition] = consumedOffset
 						}
 					}
 				}
