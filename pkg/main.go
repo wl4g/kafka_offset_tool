@@ -160,7 +160,7 @@ func runCommand() {
 					}
 				}
 				common.PrintResult("List of topics information.", dataset)
-				log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset),
+				log.Printf("\n => Result: %d row processed (%f second) finished!", len(dataset),
 					common.CostSecond(begin))
 				return nil
 			},
@@ -236,20 +236,19 @@ func runCommand() {
 				}
 
 				// export?
-				if common.IsBlank(option.outputFile) {
-					// Grid print.
-					common.GridPrinf("Consumer grouping describe list", []string{"Group", "Topic", "Partition",
-						"OldestOffset", "NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
-					// Cost statistics.
-					log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset),
-						common.CostSecond(begin))
-				} else {
+				if !common.IsBlank(option.outputFile) {
 					data := []byte(common.ToJSONString(dataset, true))
 					if err := common.WriteFile(option.outputFile, data, false); err != nil {
 						common.ErrorExit(err, "Failed to export consumed offset to '%s'", option.outputFile)
 					}
 					// Cost statistics.
 					log.Printf(" => Export to %s (%f second) finished!", option.outputFile, common.CostSecond(begin))
+				} else { // Grid print.
+					common.GridPrinf("Consumer grouping describe list", []string{"Group", "Topic", "Partition",
+						"OldestOffset", "NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
+					// Cost statistics.
+					log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset),
+						common.CostSecond(begin))
 				}
 				return nil
 			},
