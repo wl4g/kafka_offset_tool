@@ -11,8 +11,9 @@
             "mode": "auto",
             "program": "${fileDirname}/../pkg/",
             "env": {},
+            // for testing
             // "args": ["get-offset", "--brokers", "10.0.0.163:9092", "--zkServers", "10.0.0.163:2181"]
-            "args": ["offset-calc", "--increment", "1000", "--inputFile", "/home/wanglsir/Downloads/offset.json", "--outputFile", "/home/wanglsir/Downloads/offset2.json"]
+            "args": ["offset-calc", "--increment", "1000", "--inputFile", "${env:HOME}/Downloads/offset.json", "--outputFile", "${env:HOME}/Downloads/offset2.json"]
         }
     ]
 }
