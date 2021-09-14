@@ -195,24 +195,17 @@ func runCommand() {
 				// Extract & analysis consumed partition offsets.
 				groupConsumedOffset := analysisConsumedTopicPartitionOffsets(option.consumerType)
 
-				// Filtering records.
-				dataset := make([][]interface{}, 0)
+				// Filtering by group and topic and consumer.
 				for group, consumedTopicOffset := range groupConsumedOffset {
-					if common.Match(option.groupFilter, group) {
+					if !common.Match(option.groupFilter, group) {
+						delete(groupConsumedOffset, group)
 						for topic, partitionOffset := range consumedTopicOffset {
-							if common.Match(option.topicFilter, topic) {
+							if !common.Match(option.topicFilter, topic) {
+								delete(consumedTopicOffset, topic)
 								for partition, consumedOffset := range partitionOffset {
 									memberString := consumedOffset.memberAsString()
-									if common.Match(option.consumerFilter, memberString) {
-										// New print row.
-										row := []interface{}{group, topic,
-											strconv.FormatInt(int64(partition), 10),
-											strconv.FormatInt(consumedOffset.OldestOffset, 10),
-											strconv.FormatInt(consumedOffset.NewestOffset, 10),
-											strconv.FormatInt(consumedOffset.Lag, 10),
-											strconv.FormatInt(consumedOffset.ConsumedOffset, 10),
-											memberString, consumedOffset.ConsumerType}
-										dataset = append(dataset, row)
+									if !common.Match(option.consumerFilter, memberString) {
+										delete(partitionOffset, partition)
 									}
 								}
 							}
@@ -220,12 +213,30 @@ func runCommand() {
 					}
 				}
 
-				// Using export?
+				// Reassemble
+				dataset := make([][]interface{}, 0)
+				for group, consumedTopicOffset := range groupConsumedOffset {
+					for topic, partitionOffset := range consumedTopicOffset {
+						for partition, consumedOffset := range partitionOffset {
+							memberString := consumedOffset.memberAsString()
+							// New print row.
+							row := []interface{}{group, topic,
+								strconv.FormatInt(int64(partition), 10),
+								strconv.FormatInt(consumedOffset.OldestOffset, 10),
+								strconv.FormatInt(consumedOffset.NewestOffset, 10),
+								strconv.FormatInt(consumedOffset.Lag, 10),
+								strconv.FormatInt(consumedOffset.ConsumedOffset, 10),
+								memberString, consumedOffset.ConsumerType}
+							dataset = append(dataset, row)
+						}
+					}
+				}
+
+				// export?
 				if common.IsBlank(option.outputFile) {
 					// Grid print.
 					common.GridPrinf("Consumer grouping describe list", []string{"Group", "Topic", "Partition",
 						"OldestOffset", "NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
-
 					// Cost statistics.
 					log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset),
 						common.CostSecond(begin))
