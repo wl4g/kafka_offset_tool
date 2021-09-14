@@ -216,34 +216,33 @@ func runCommand() {
 					}
 				}
 
-				// Reassemble
-				dataset := make([][]interface{}, 0)
-				for group, consumedTopicOffset := range groupConsumedOffset {
-					for topic, partitionOffset := range consumedTopicOffset {
-						for partition, consumedOffset := range partitionOffset {
-							memberString := consumedOffset.memberAsString()
-							// New print row.
-							row := []interface{}{group, topic,
-								strconv.FormatInt(int64(partition), 10),
-								strconv.FormatInt(consumedOffset.OldestOffset, 10),
-								strconv.FormatInt(consumedOffset.NewestOffset, 10),
-								strconv.FormatInt(consumedOffset.Lag, 10),
-								strconv.FormatInt(consumedOffset.ConsumedOffset, 10),
-								memberString, consumedOffset.ConsumerType}
-							dataset = append(dataset, row)
-						}
-					}
-				}
-
 				// export?
 				if !common.IsBlank(option.outputFile) {
-					data := []byte(common.ToJSONString(dataset, true))
+					data := []byte(common.ToJSONString(groupConsumedOffset, true))
 					if err := common.WriteFile(option.outputFile, data, false); err != nil {
 						common.ErrorExit(err, "Failed to export consumed offset to '%s'", option.outputFile)
 					}
 					// Cost statistics.
-					log.Printf(" => Export to %s (%f second) finished!", option.outputFile, common.CostSecond(begin))
+					log.Printf(" => Exported to %s (%f second) finished!", option.outputFile, common.CostSecond(begin))
 				} else { // Grid print.
+					// Transform to dataset
+					dataset := make([][]interface{}, 0)
+					for group, consumedTopicOffset := range groupConsumedOffset {
+						for topic, partitionOffset := range consumedTopicOffset {
+							for partition, consumedOffset := range partitionOffset {
+								memberString := consumedOffset.memberAsString()
+								// New print row.
+								row := []interface{}{group, topic,
+									strconv.FormatInt(int64(partition), 10),
+									strconv.FormatInt(consumedOffset.OldestOffset, 10),
+									strconv.FormatInt(consumedOffset.NewestOffset, 10),
+									strconv.FormatInt(consumedOffset.Lag, 10),
+									strconv.FormatInt(consumedOffset.ConsumedOffset, 10),
+									memberString, consumedOffset.ConsumerType}
+								dataset = append(dataset, row)
+							}
+						}
+					}
 					common.GridPrinf("Consumer grouping describe list", []string{"Group", "Topic", "Partition",
 						"OldestOffset", "NewestOffset", "Lag", "ConsumedOffset", "ConsumerOwner", "Type"}, dataset)
 					// Cost statistics.
