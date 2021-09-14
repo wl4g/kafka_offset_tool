@@ -42,15 +42,13 @@ func setOffset() {
 		for setGroup, consumedTopicOffset := range setGroupConsumedOffsets {
 			for setTopic, partitionOffset := range consumedTopicOffset {
 				for setPartition, setConsumedOffset := range partitionOffset {
-					log.Printf("Batch import reset offset for %s/%s/%d/%d...", setGroup, setTopic,
-						setPartition, setConsumedOffset.ConsumedOffset)
 					doSetOffset(fetchedGroupConsumedOffsets, setGroup, setTopic, int64(setPartition),
 						setConsumedOffset.ConsumedOffset)
 				}
 			}
 		}
 	} else {
-		log.Printf("Simple reset offset for %s/%s/%d/%d...", option.setGroupId, option.setTopic, option.setPartition, option.setOffset)
+		log.Printf("Simple set offset for %s, %s, %d, %d ...", option.setGroupId, option.setTopic, option.setPartition, option.setOffset)
 		doSetOffset(fetchedGroupConsumedOffsets, option.setGroupId, option.setTopic, option.setPartition, option.setOffset)
 	}
 }
@@ -62,18 +60,19 @@ func setOffset() {
  * @date 19-07-20
  */
 func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId string, setTopic string, setPartition int64, setOffset int64) {
-	match := false
+	matched := false
 	for groupId, topicPartitionOffsets := range fetchedGroupConsumedOffsets {
 		if groupId == setGroupId {
 			for topic, partitionOffsets := range topicPartitionOffsets {
 				if topic == setTopic {
 					for partition, consumedOffset := range partitionOffsets {
 						if int64(partition) == setPartition {
-							match = true
-							if setOffset <= consumedOffset.OldestOffset || setOffset >= consumedOffset.ConsumedOffset {
-								common.FatalExit("Failed to reset offset, must be between %d and %d, %s/%s/%d/%d",
-									consumedOffset.OldestOffset, consumedOffset.ConsumedOffset, setGroupId, setTopic, setPartition,
-									setOffset)
+							// Check valid?
+							if setOffset >= consumedOffset.OldestOffset && setOffset <= consumedOffset.ConsumedOffset {
+								matched = true
+							} else { // Invalid
+								common.Warning("Failed to set offset, must be between %d and %d - setGroupId: %s, setTopic: %s, setPartition: %d, setOffset: %d", consumedOffset.OldestOffset,
+									consumedOffset.ConsumedOffset, setGroupId, setTopic, setPartition, setOffset)
 							}
 							break
 						}
@@ -82,26 +81,26 @@ func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId st
 			}
 		}
 	}
-	if !match { // Invalid group,topic,partition ?
-		common.FatalExit("Failed to set offset, because no matchs setting group: %s, topic: %s, partition: %s",
-			setGroupId, setTopic, setPartition)
-	}
 
-	// Check if the consumer type of the group is KAFKA direct(not zookeeper)?
-	isKafkaDirectConsumerGroup := false
-	for _, broker := range listBrokers() {
-		groupIds := listKafkaGroupId(broker)
-		if common.StringsContains(groupIds, setGroupId, false) {
-			isKafkaDirectConsumerGroup = true
-			break
+	if matched { // Matched group,topic,partition and valid
+		// Check if the consumer type of the group is KAFKA direct(not zookeeper)?
+		isKafkaDirectConsumerGroup := false
+		for _, broker := range listBrokers() {
+			groupIds := listKafkaGroupId(broker)
+			if common.StringsContains(groupIds, setGroupId, false) {
+				isKafkaDirectConsumerGroup = true
+				break
+			}
 		}
-	}
-
-	// Do reset specific offset.
-	if isKafkaDirectConsumerGroup {
-		doSetKafkaOffset(setGroupId, setTopic, setPartition, setOffset)
+		// Do reset specific offset.
+		if isKafkaDirectConsumerGroup {
+			doSetKafkaOffset(setGroupId, setTopic, setPartition, setOffset)
+		} else {
+			doSetZookeeperOffset(setGroupId, setTopic, setPartition, setOffset)
+		}
 	} else {
-		doSetZookeeperOffset(setGroupId, setTopic, setPartition, setOffset)
+		common.Warning("Failed to set offset, because no matchs setting group: %s, topic: %s, partition: %s",
+			setGroupId, setTopic, setPartition)
 	}
 }
 
@@ -113,8 +112,13 @@ func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId st
  */
 func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, setOffset int64) {
 	// Handle reset offset.
-	var offsetManager, _ = sarama.NewOffsetManagerFromClient(setGroupId, option.client)
-	var pom, _ = offsetManager.ManagePartition(setTopic, int32(setPartition))
+	var offsetManager, err1 = sarama.NewOffsetManagerFromClient(setGroupId, option.client)
+	var pom, err2 = offsetManager.ManagePartition(setTopic, int32(setPartition))
+	if err1 != nil || err2 != nil {
+		common.Warning("Failed to set kafka offset(%d) for group(%s), topic(%s), partition(%d). - err1: %v, err2: %v",
+			setOffset, setTopic, setGroupId, setPartition, err1, err2)
+		return
+	}
 
 	// Do reset offset.
 	log.Printf("Resetting offset via kafka direct...")
@@ -124,7 +128,7 @@ func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, se
 	time.Sleep(2 * time.Second)
 	defer pom.Close()
 
-	log.Printf("Reset kafka direct offset(%d) for group(%s), topic(%s), partition(%d) completed!",
+	log.Printf("Seted kafka direct offset(%d) for group(%s), topic(%s), partition(%d) completed!",
 		setOffset, setTopic, setGroupId, setPartition)
 }
 
@@ -135,20 +139,30 @@ func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, se
  * @date 19-07-22
  */
 func doSetZookeeperOffset(setGroupId string, setTopic string, setPartition int64, setOffset int64) {
-	log.Printf("Checking reset zookeeper offset range of group/topic/partition...")
+	log.Printf("Preparing set zk offset range of group: %s, topic: %s, partition: %d, offset: %d ...",
+		setGroupId, setTopic, setPartition, setOffset)
 
 	// Get reset consumer group.
 	setConsumerGroupId := option.zkClient.Consumergroup(setGroupId)
-	if *&setConsumerGroupId == nil {
-		common.FatalExit("Failed to set offset, because not exist groupId of (%s)", setGroupId)
-	}
-
-	// Do set new offset.
-	if err := setConsumerGroupId.CommitOffset(setTopic, int32(setPartition), setOffset); err == nil {
-		log.Printf("Reset zookeeper offset(%d) for topic(%s), group(%s), partition(%d) successfuly!",
-			setOffset, setTopic, setGroupId, setPartition)
+	if setConsumerGroupId != nil {
+		// Check current offset and setOffset
+		fetchedOffset, err1 := setConsumerGroupId.FetchOffset(setTopic, int32(setPartition))
+		if err1 == nil {
+			if setOffset != fetchedOffset {
+				// Do set new offset.
+				if err2 := setConsumerGroupId.CommitOffset(setTopic, int32(setPartition), setOffset); err2 == nil {
+					log.Printf("Seted zk offset(%d) for group(%s), topic(%s), partition(%d) successful",
+						setOffset, setGroupId, setTopic, setPartition)
+				} else {
+					common.ErrorExit(err2, "Failed to set zk offset(%d) for topic(%s), group(%s), partition(%d)",
+						setOffset, setTopic, setGroupId, setPartition)
+				}
+			} else {
+				log.Printf("Already a set offset nothing todo. group: %s, topic: %s, partition: %d, offset: %d",
+					setGroupId, setTopic, setPartition, setOffset)
+			}
+		}
 	} else {
-		common.ErrorExit(err, "Failed to set zookeeper offset(%d) for topic(%s), group(%s), partition(%d)",
-			setOffset, setTopic, setGroupId, setPartition)
+		common.Warning("Failed to set offset, because not exist groupId of (%s)", setGroupId)
 	}
 }

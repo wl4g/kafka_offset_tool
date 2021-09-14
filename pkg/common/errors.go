@@ -31,10 +31,25 @@ func init() {
 /**
  * Print error message, If it is a fatal exception, it exits(2) the process.
  */
+func Warning(errMsgFormat string, args ...interface{}) {
+	errMsg := errMsgFormat
+	if args != nil && len(args) > 0 {
+		errMsg = fmt.Sprintf(errMsgFormat, args...)
+	}
+	if kfDebug {
+		log.Panicf("WARNING: " + errMsg)
+	} else {
+		log.Printf("WARNING: " + errMsg)
+	}
+}
+
+/**
+ * Print error message, If it is a fatal exception, it exits(2) the process.
+ */
 func FatalExit(errMsgFormat string, args ...interface{}) {
 	errMsg := errMsgFormat
 	if args != nil && len(args) > 0 {
-		errMsg = fmt.Sprintf(errMsgFormat, args)
+		errMsg = fmt.Sprintf(errMsgFormat, args...)
 	}
 	if kfDebug {
 		log.Panicf(errMsg)
@@ -50,7 +65,7 @@ func FatalExit(errMsgFormat string, args ...interface{}) {
 func ErrorExit(err error, errMsgFormat string, args ...interface{}) {
 	errMsg := errMsgFormat
 	if args != nil && len(args) > 0 {
-		errMsg = fmt.Sprintf(errMsgFormat, args)
+		errMsg = fmt.Sprintf(errMsgFormat, args...)
 	}
 	if kfDebug {
 		log.Panicf(errMsg, err)
