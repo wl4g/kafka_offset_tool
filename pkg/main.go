@@ -38,7 +38,7 @@ _  __      __ _            ____   __  __          _    _______          _
 |_|\_\__,_|_| |_|\_\__,_|  \____/|_| |_| |___/\___|\__|  |_|\___/ \___/|_|
 	`
 	DESCRIPTION = "KafkaOffsetTool is a lightweight common for Kafka offset operation and maintenance."
-	VERSION     = "v1.0.0"
+	VERSION     = "v1.2.0"
 	WIKI        = "https://github.com/wl4g/kafka_offset_tool/blob/master/README.md"
 	AUTHORS     = "Wanglsir@gmail.com, 983708408@qq.com"
 )
@@ -83,10 +83,10 @@ func main() {
  */
 func runCommand() {
 	fmt.Printf("%s\n", BANNER)
-	fmt.Printf("version: %s\n", VERSION)
-	fmt.Printf("authors: %s\n", AUTHORS)
-	fmt.Printf("wiki: %s\n", WIKI)
-	fmt.Printf("time: %s\n\n", time.Now().Format(time.RFC3339))
+	fmt.Printf("VERSION: %s\n", VERSION)
+	fmt.Printf("AUTHORS: %s\n", AUTHORS)
+	fmt.Printf("WIKI: %s\n", WIKI)
+	fmt.Printf("TIME: %s\n\n", time.Now().Format(time.RFC3339))
 
 	app := cli.NewApp()
 	app.HideVersion = true
