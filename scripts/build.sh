@@ -13,7 +13,7 @@
 # limitations under the License.
 
 BASE_DIR=$(cd "`dirname $0`"; pwd)
-sudo mkdir -p ${BASE_DIR}/../bin
+mkdir -p ${BASE_DIR}/../bin
 
 export CGO_ENABLED=0
 # ubuntu:/lib/i386-linux-gnu/libc.so.6, centos:/usr/lib64/libc.so
