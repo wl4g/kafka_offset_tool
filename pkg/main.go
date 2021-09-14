@@ -151,16 +151,17 @@ func runCommand() {
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
-				var i = int(0)
+				begin := time.Now().UnixNano()
 				dataset := make([]string, 0)
 				for _, topicName := range listTopicAll() {
 					// New print row.
 					if common.Match(option.topicFilter, topicName) {
-						i++
-						dataset = append(dataset, fmt.Sprintf("%s: %s", strconv.Itoa(i), topicName))
+						dataset = append(dataset, topicName)
 					}
 				}
 				common.PrintResult("List of topics information.", dataset)
+				log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset),
+					common.CostSecond(begin))
 				return nil
 			},
 		},
