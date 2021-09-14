@@ -40,8 +40,11 @@ func WriteFile(path string, data []byte, append bool) error {
 		if err != nil {
 			return err
 		}
-		file.Write(data)
+		_, err2 := file.Write(data)
 		defer file.Close()
+		if err2 != nil {
+			return err2
+		}
 	}
 	return nil
 }

@@ -286,13 +286,16 @@ func runCommand() {
 				for group, topics := range input {
 					for topic, partitions := range topics {
 						for partition, consumedOffset := range partitions {
-							var beforeChanged = consumedOffset.ConsumedOffset
 							// increment offset to new value
-							consumedOffset.ConsumedOffset += option.increment
-							log.Printf("Calculating to group: %s, topic: %s, partition: %s, %v => %v",
+							var beforeChanged = consumedOffset.ConsumedOffset
+							var afterChanged = beforeChanged + option.increment
+							if afterChanged > 0 {
+								consumedOffset.ConsumedOffset = afterChanged
+								// Change element
+								partitions[partition] = consumedOffset
+							}
+							log.Printf("Calculating to group: %s, topic: %s, partition: %s, offset: %v => %v",
 								group, topic, strconv.FormatInt(int64(partition), 10), beforeChanged, consumedOffset.ConsumedOffset)
-							// Change element
-							partitions[partition] = consumedOffset
 						}
 					}
 				}
