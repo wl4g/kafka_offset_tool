@@ -28,6 +28,21 @@ import (
 	"github.com/wl4g/kafka_offset_tool/pkg/common"
 )
 
+const (
+	BANNER = ` 
+_  __      __ _            ____   __  __          _    _______          _ 
+| |/ /     / _| |          / __ \ / _|/ _|        | | |__   __|        | |
+| ' / __ _| |_| | ____ _  | |  | | |_| |_ ___  ___| |_   | | ___   ___ | |
+|  < / _' |  _| |/ / _' | | |  | |  _|  _/ __|/ _ \ __|  | |/ _ \ / _ \| |
+| . \ (_| | | |   < (_| | | |__| | | | | \__ \  __/ |_   | | (_) | (_) | |
+|_|\_\__,_|_| |_|\_\__,_|  \____/|_| |_| |___/\___|\__|  |_|\___/ \___/|_|
+	`
+	DESCRIPTION = "KafkaOffsetTool is a lightweight common for Kafka offset operation and maintenance."
+	VERSION     = "v1.0.0"
+	WIKI        = "https://github.com/wl4g/kafka_offset_tool/blob/master/README.md"
+	AUTHORS     = "Wanglsir@gmail.com, 983708408@qq.com"
+)
+
 type kafkaOption struct {
 	client   sarama.Client
 	zkClient *kazoo.Kazoo
@@ -41,31 +56,19 @@ type kafkaOption struct {
 	consumerFilter string
 	consumerType   string
 
-	exportFile string // Export file path.
-	importFile string // Import file path.
+	outputFile string // Ouput file path.
+	inputFile  string // Input file path.
 
-	resetGroupId   string
-	resetTopic     string
-	resetPartition int64
-	resetOffset    int64
+	setGroupId   string
+	setTopic     string
+	setPartition int64
+	setOffset    int64
+
+	increment int64
 }
 
-const (
-	NAME    = "KafkaOffsetTool"
-	VERSION = "v1.0.0"
-	BANNER  = ` 
-_  __      __ _            ____   __  __          _     _______          _ 
-| |/ /     / _| |          / __ \ / _|/ _|        | |   |__   __|        | |
-| ' / __ _| |_| | ____ _  | |  | | |_| |_ ___  ___| |_     | | ___   ___ | |
-|  < / _' |  _| |/ / _' | | |  | |  _|  _/ __|/ _ \ __|    | |/ _ \ / _ \| |
-| . \ (_| | | |   < (_| | | |__| | | | | \__ \  __/ |_     | | (_) | (_) | |
-|_|\_\__,_|_| |_|\_\__,_|  \____/|_| |_| |___/\___|\__|    |_|\___/ \___/|_|
-`
-	WIKI = "https://github.com/wl4g/kafka_offset_tool/blob/master/README.md"
-)
-
 var (
-	opt = kafkaOption{}
+	option = kafkaOption{}
 )
 
 func main() {
@@ -80,39 +83,33 @@ func main() {
  */
 func runCommand() {
 	fmt.Printf("%s\n", BANNER)
-	fmt.Printf("wiki: %s\n", WIKI)
 	fmt.Printf("version: %s\n", VERSION)
+	fmt.Printf("authors: %s\n", AUTHORS)
+	fmt.Printf("wiki: %s\n", WIKI)
 	fmt.Printf("time: %s\n\n", time.Now().Format(time.RFC3339))
 
 	app := cli.NewApp()
-	app.Name = NAME
-	app.Version = VERSION
-	app.Authors = []cli.Author{
-		{Name: "Wanglsir", Email: "Wanglsir@gmail.com, 983708408@qq.com"},
-	}
-	app.Description = "KafkaOffsetTool is a lightweight common for Kafka offset operation and maintenance."
-	app.Copyright = "(c) 2021 Serious Enterprise"
 	app.Commands = cli.Commands{
 		{
 			Name:        "get-group",
 			Usage:       "get-group [OPTIONS]...",
 			Description: "Gets the kafka consumer groups information.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Value: "127.0.0.1:9092", Destination: &opt.brokers},
-				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Value: "127.0.0.1:2181", Destination: &opt.zkServers},
+				cli.StringFlag{Name: "brokers,b", Value: "127.0.0.1:9092", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &option.brokers},
+				cli.StringFlag{Name: "zkServers,z", Value: "127.0.0.1:2181", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &option.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. (default: 0.10.0.0) --version=0.10.0.0",
-					Destination: &opt.kafkaVersion},
+					Destination: &option.kafkaVersion},
 				cli.StringFlag{Name: "groupFilter,f", Value: "*", Usage: "e.g. --groupFilter=myPrefix\\\\S*",
-					Destination: &opt.groupFilter},
-				cli.StringFlag{Name: "type,t", Value: "*", Usage: "e.g. --type=zk|kf|*", Destination: &opt.consumerType},
+					Destination: &option.groupFilter},
+				cli.StringFlag{Name: "type,t", Value: "*", Usage: "e.g. --type=zk|kf|*", Destination: &option.consumerType},
 			},
 			Before: func(c *cli.Context) error {
-				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
+				if common.IsAnyBlank(option.brokers, option.zkServers) {
 					common.FatalExit("Arguments brokers,zkServers is required")
 				}
-				if !common.StringsContains([]string{ZKType, KFType, "*"}, opt.consumerType, true) {
+				if !common.StringsContains([]string{ZKType, KFType, "*"}, option.consumerType, true) {
 					common.FatalExit("Failed to get list of groups, un-support consumer type %s",
-						opt.consumerType)
+						option.consumerType)
 				}
 				return ensureConnected()
 			},
@@ -121,7 +118,7 @@ func runCommand() {
 				dataset := make([][]interface{}, 0)
 				for groupIdName, _consumerType := range listGroupIdAll() {
 					// New print row.
-					if common.Match(opt.groupFilter, groupIdName) {
+					if common.Match(option.groupFilter, groupIdName) {
 						row := []interface{}{groupIdName, _consumerType}
 						dataset = append(dataset, row)
 					}
@@ -140,14 +137,14 @@ func runCommand() {
 			Usage:       "get-topic [OPTIONS]...",
 			Description: "Gets the kafka topics information.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Value: "127.0.0.1:9092", Destination: &opt.brokers},
-				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Value: "127.0.0.1:2181", Destination: &opt.zkServers},
+				cli.StringFlag{Name: "brokers,b", Value: "127.0.0.1:9092", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &option.brokers},
+				cli.StringFlag{Name: "zkServers,z", Value: "127.0.0.1:2181", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &option.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. (default: 0.10.0.0) --version=0.10.0.0",
-					Destination: &opt.kafkaVersion},
+					Destination: &option.kafkaVersion},
 				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "e.g. --filter=myPrefix\\\\S*"},
 			},
 			Before: func(c *cli.Context) error {
-				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
+				if common.IsAnyBlank(option.brokers, option.zkServers) {
 					common.FatalExit("Arguments brokers,zkServers is required")
 				}
 				return ensureConnected()
@@ -162,44 +159,44 @@ func runCommand() {
 			Usage:       "get-offset [OPTIONS]...",
 			Description: "Gets the kafka consumer group offsets information.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Value: "127.0.0.1:9092", Destination: &opt.brokers},
-				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Value: "127.0.0.1:2181", Destination: &opt.zkServers},
+				cli.StringFlag{Name: "brokers,b", Value: "127.0.0.1:9092", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &option.brokers},
+				cli.StringFlag{Name: "zkServers,z", Value: "127.0.0.1:2181", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &option.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. --version=0.10.0.0",
-					Destination: &opt.kafkaVersion},
+					Destination: &option.kafkaVersion},
 				cli.StringFlag{Name: "groupFilter", Value: "*", Usage: "e.g. --groupFilter=myPrefix\\\\S*",
-					Destination: &opt.groupFilter},
+					Destination: &option.groupFilter},
 				cli.StringFlag{Name: "topicFilter", Value: "*", Usage: "e.g. --topicFilter=myPrefix\\\\S*",
-					Destination: &opt.topicFilter},
+					Destination: &option.topicFilter},
 				cli.StringFlag{Name: "consumerFilter", Value: "*", Usage: "e.g. --consumerFilter=myPrefix\\\\S*",
-					Destination: &opt.consumerFilter},
+					Destination: &option.consumerFilter},
 				cli.StringFlag{Name: "type,t", Value: "*", Usage: "e.g. --type=zk|kf|*",
-					Destination: &opt.consumerType},
-				cli.StringFlag{Name: "exportFile,o", Usage: "e.g. --exportFile=myGroup-offset.json", Destination: &opt.exportFile},
+					Destination: &option.consumerType},
+				cli.StringFlag{Name: "outputFile,o", Usage: "e.g. --outputFile=myoffset.json", Destination: &option.outputFile},
 			},
 			Before: func(c *cli.Context) error {
-				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
+				if common.IsAnyBlank(option.brokers, option.zkServers) {
 					common.FatalExit("Arguments brokers,zkServers is required")
 				}
-				if !(common.StringsContains([]string{ZKType, KFType, "*"}, opt.consumerType, true)) {
-					common.FatalExit("Invalid consumer type. %s", opt.consumerType)
+				if !(common.StringsContains([]string{ZKType, KFType, "*"}, option.consumerType, true)) {
+					common.FatalExit("Invalid consumer type. %s", option.consumerType)
 				}
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
 				begin := time.Now().UnixNano()
 				// Extract & analysis consumed partition offsets.
-				groupConsumedOffset := analysisConsumedTopicPartitionOffsets(opt.consumerType)
+				groupConsumedOffset := analysisConsumedTopicPartitionOffsets(option.consumerType)
 
 				// Using export?
-				if common.IsBlank(opt.exportFile) {
+				if common.IsBlank(option.outputFile) {
 					dataset := make([][]interface{}, 0)
 					for group, consumedTopicOffset := range groupConsumedOffset {
-						if common.Match(opt.groupFilter, group) {
+						if common.Match(option.groupFilter, group) {
 							for topic, partitionOffset := range consumedTopicOffset {
-								if common.Match(opt.topicFilter, topic) {
+								if common.Match(option.topicFilter, topic) {
 									for partition, consumedOffset := range partitionOffset {
 										memberString := consumedOffset.memberAsString()
-										if common.Match(opt.consumerFilter, memberString) {
+										if common.Match(option.consumerFilter, memberString) {
 											// New print row.
 											row := []interface{}{group, topic,
 												strconv.FormatInt(int64(partition), 10),
@@ -225,11 +222,11 @@ func runCommand() {
 						common.CostSecond(begin))
 				} else {
 					data := []byte(common.ToJSONString(groupConsumedOffset, true))
-					if err := common.WriteFile(opt.exportFile, data, false); err != nil {
-						common.ErrorExit(err, "Failed to export consumed offset to '%s'", opt.exportFile)
+					if err := common.WriteFile(option.outputFile, data, false); err != nil {
+						common.ErrorExit(err, "Failed to export consumed offset to '%s'", option.outputFile)
 					}
 					// Cost statistics.
-					log.Printf(" => Export to %s (%f second) finished!", opt.exportFile, common.CostSecond(begin))
+					log.Printf(" => Export to %s (%f second) finished!", option.outputFile, common.CostSecond(begin))
 				}
 				return nil
 			},
@@ -239,29 +236,69 @@ func runCommand() {
 			Usage:       "set-offset [OPTIONS]...",
 			Description: "set the offset of the specified kafka group topic partition.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "brokers,b", Usage: "e.g. --brokers=127.0.0.1:9092", Value: "127.0.0.1:9092", Destination: &opt.brokers},
-				cli.StringFlag{Name: "zkServers,z", Usage: "e.g. --zkServers=127.0.0.1:2181", Value: "127.0.0.1:2181", Destination: &opt.zkServers},
+				cli.StringFlag{Name: "brokers,b", Value: "127.0.0.1:9092", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &option.brokers},
+				cli.StringFlag{Name: "zkServers,z", Value: "127.0.0.1:2181", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &option.zkServers},
 				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. --version=0.10.0.0",
-					Destination: &opt.kafkaVersion},
-				cli.StringFlag{Name: "resetGroup,g", Usage: "e.g. --resetGroup=myGroup", Destination: &opt.resetGroupId},
-				cli.StringFlag{Name: "resetTopic,t", Usage: "e.g. --resetTopic=myTopic", Destination: &opt.resetTopic},
-				cli.Int64Flag{Name: "resetPartition,p", Usage: "e.g. --resetPartition=0", Destination: &opt.resetPartition},
-				cli.Int64Flag{Name: "resetOffset,f", Usage: "e.g. --resetOffset=0", Destination: &opt.resetOffset},
-				cli.StringFlag{Name: "importFile,i", Usage: "e.g. --importFile=myGroup-offset.json", Destination: &opt.importFile},
+					Destination: &option.kafkaVersion},
+				cli.StringFlag{Name: "group,g", Usage: "Specifies which consumer group offset to set. e.g. --group=mygroup", Destination: &option.setGroupId},
+				cli.StringFlag{Name: "topic,t", Usage: "Specifies which topic offset to set. e.g. --topic=mytopic", Destination: &option.setTopic},
+				cli.Int64Flag{Name: "partition,p", Usage: "Specifies which partition offset to set. e.g. --partition=0", Destination: &option.setPartition},
+				cli.Int64Flag{Name: "offset,f", Usage: "Specifies the offset value to set (>= 0). e.g. --offset=0", Destination: &option.setOffset},
+				cli.StringFlag{Name: "inputFile,i", Usage: "Load the offset configuration to set from the local file path, If it exists simultaneously with the arg 'group/topic/partition/offset', only this arg takes effect. e.g. --inputFile=myoffset.json", Destination: &option.inputFile},
 			},
 			Before: func(c *cli.Context) error {
-				if common.IsAnyBlank(opt.brokers, opt.zkServers) {
-					common.FatalExit("Arguments brokers,zkServers is required")
+				if common.IsAnyBlank(option.brokers, option.zkServers) {
+					common.FatalExit("Invalid arguments brokers,zkServers is required!")
 				}
-				if common.IsBlank(opt.importFile) {
-					if common.IsAnyBlank(opt.resetGroupId, opt.resetTopic) || opt.resetPartition == 0 || opt.resetOffset == 0 {
-						common.FatalExit("Arguments resetTopic,resetPartition,resetOffset is required, And resetPartition,resetOffset must be greater than 0")
+				if common.IsBlank(option.inputFile) {
+					if common.IsAnyBlank(option.setGroupId, option.setTopic) || option.setPartition == 0 || option.setOffset == 0 {
+						common.FatalExit("Invalid arguments '--topic,-t and --partition,-p and --offset,-f is required, and partition,offset(must >=0)")
 					}
 				}
 				return ensureConnected()
 			},
 			Action: func(c *cli.Context) error {
-				resetOffset()
+				setOffset()
+				return nil
+			},
+		},
+		{
+			Name:        "offset-calc",
+			Usage:       "offset-calc [OPTIONS]...",
+			Description: "Tool commands for calculator kafka offsets in file.",
+			Flags: []cli.Flag{
+				cli.Int64Flag{Name: "increment,I", Usage: "The increment used to calculate the offset, which can be negative. e.g. --I=1000", Destination: &option.increment},
+				cli.StringFlag{Name: "inputFile,i", Usage: "Load the offset configuration to set from the local file path. e.g. --inputFile=myoffset1.json", Destination: &option.inputFile},
+				cli.StringFlag{Name: "outputFile,o", Usage: "Output the calculated configuration to the local file. e.g. --outputFile=myoffset2.json", Destination: &option.outputFile},
+			},
+			Before: func(c *cli.Context) error {
+				if common.IsAnyBlank(option.inputFile, option.outputFile) {
+					common.FatalExit("Invalid arguments '--inputFile,-i/--outputFile,-o' is required")
+				}
+				return nil
+			},
+			Action: func(c *cli.Context) error {
+				input := make(GroupConsumedOffsets)
+				common.ParseJSONFromFile(option.inputFile, &input)
+
+				// calculation offset
+				for group, topics := range input {
+					for topic, partitions := range topics {
+						for partition, consumedOffset := range partitions {
+							var beforeChanged = consumedOffset.ConsumedOffset
+							// increment offset to new value
+							consumedOffset.ConsumedOffset += option.increment
+							log.Printf("Calculating to group: %s, topic: %s, partition: %s, %v => %v",
+								group, topic, strconv.FormatInt(int64(partition), 10), beforeChanged, consumedOffset.ConsumedOffset)
+						}
+					}
+				}
+
+				// Output new consumerd offsets file
+				data := []byte(common.ToJSONString(input, true))
+				if err := common.WriteFile(option.outputFile, data, false); err != nil {
+					common.ErrorExit(err, "Failed to export consumed offset to '%s'", option.outputFile)
+				}
 				return nil
 			},
 		},

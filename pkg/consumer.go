@@ -17,19 +17,27 @@ package main
 
 import (
 	"fmt"
-	"github.com/Shopify/sarama"
-	"github.com/wl4g/kafka_offset_tool/pkg/common"
 	"log"
 	"sync"
+
+	"github.com/Shopify/sarama"
+	"github.com/wl4g/kafka_offset_tool/pkg/common"
 )
 
+const (
+	ZKType = "ZK"
+	KFType = "KF"
+	None   = "None"
+)
+
+// groupId => topic => partition => ConsumedOffset
 type GroupConsumedOffsets map[string]map[string]map[int32]ConsumedOffset
 
 type ConsumedOffset struct {
 	ConsumedOffset int64
 	Lag            int64
 	Member         *sarama.GroupMemberDescription
-	ConsumerType   string
+	ConsumerType   string // zk|kf
 	ProducedOffset
 }
 
@@ -41,12 +49,6 @@ func (consumedOffset *ConsumedOffset) memberAsString() string {
 	}
 	return None
 }
-
-const (
-	ZKType = "ZK"
-	KFType = "KF"
-	None   = "None"
-)
 
 /**
  * Get consumer group member by topic and partition.
@@ -178,7 +180,7 @@ func analysisConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOff
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if zkConsumerGroups, e5 := opt.zkClient.Consumergroups(); e5 != nil {
+			if zkConsumerGroups, e5 := option.zkClient.Consumergroups(); e5 != nil {
 				log.Printf("Cannot get consumer group(zookeeper). %v", e5)
 			} else {
 				for _, zkGroup := range zkConsumerGroups {

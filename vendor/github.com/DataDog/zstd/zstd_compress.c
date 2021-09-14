@@ -24,7 +24,7 @@
 #include "zstd_fast.h"
 #include "zstd_double_fast.h"
 #include "zstd_lazy.h"
-#include "zstd_opt.h"
+#include "zstd_option.h"
 #include "zstd_ldm.h"
 
 
@@ -1207,7 +1207,7 @@ static void ZSTD_invalidateMatchState(ZSTD_matchState_t* ms)
     ms->nextToUpdate = ms->window.dictLimit;
     ms->nextToUpdate3 = ms->window.dictLimit;
     ms->loadedDictEnd = 0;
-    ms->opt.litLengthSum = 0;  /* force reset of btopt stats */
+    ms->option.litLengthSum = 0;  /* force reset of btopt stats */
     ms->dictMatchState = NULL;
 }
 
@@ -1266,15 +1266,15 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     /* opt parser space */
     if (forCCtx && (cParams->strategy >= ZSTD_btopt)) {
         DEBUGLOG(4, "reserving optimal parser space");
-        ms->opt.litFreq = (unsigned*)ptr;
-        ms->opt.litLengthFreq = ms->opt.litFreq + (1<<Litbits);
-        ms->opt.matchLengthFreq = ms->opt.litLengthFreq + (MaxLL+1);
-        ms->opt.offCodeFreq = ms->opt.matchLengthFreq + (MaxML+1);
-        ptr = ms->opt.offCodeFreq + (MaxOff+1);
-        ms->opt.matchTable = (ZSTD_match_t*)ptr;
-        ptr = ms->opt.matchTable + ZSTD_OPT_NUM+1;
-        ms->opt.priceTable = (ZSTD_optimal_t*)ptr;
-        ptr = ms->opt.priceTable + ZSTD_OPT_NUM+1;
+        ms->option.litFreq = (unsigned*)ptr;
+        ms->option.litLengthFreq = ms->option.litFreq + (1<<Litbits);
+        ms->option.matchLengthFreq = ms->option.litLengthFreq + (MaxLL+1);
+        ms->option.offCodeFreq = ms->option.matchLengthFreq + (MaxML+1);
+        ptr = ms->option.offCodeFreq + (MaxOff+1);
+        ms->option.matchTable = (ZSTD_match_t*)ptr;
+        ptr = ms->option.matchTable + ZSTD_OPT_NUM+1;
+        ms->option.priceTable = (ZSTD_optimal_t*)ptr;
+        ptr = ms->option.priceTable + ZSTD_OPT_NUM+1;
     }
 
     /* table Space */
@@ -2641,7 +2641,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
         goto out;  /* don't even attempt compression below a certain srcSize */
     }
     ZSTD_resetSeqStore(&(zc->seqStore));
-    ms->opt.symbolCosts = &zc->blockState.prevCBlock->entropy;   /* required for optimal parser to read stats from dictionary */
+    ms->option.symbolCosts = &zc->blockState.prevCBlock->entropy;   /* required for optimal parser to read stats from dictionary */
 
     /* a gap between an attached dict and the current window is not safe,
      * they must remain adjacent,

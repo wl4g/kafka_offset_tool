@@ -16,10 +16,11 @@
 package main
 
 import (
-	"github.com/Shopify/sarama"
-	"github.com/wl4g/kafka_offset_tool/pkg/common"
 	"log"
 	"sync"
+
+	"github.com/Shopify/sarama"
+	"github.com/wl4g/kafka_offset_tool/pkg/common"
 )
 
 type ProducedOffset struct {
@@ -46,7 +47,7 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 		go func(topic string) {
 			wg.Add(1)
 			defer wg.Done()
-			partitions, err := opt.client.Partitions(topic)
+			partitions, err := option.client.Partitions(topic)
 			if err != nil {
 				common.ErrorExit(err, "Cannot get partitions of topic: %s, %s", topic)
 			}
@@ -61,7 +62,7 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 				mu.Unlock()
 
 				// Largest offset(logSize).
-				newestOffset, err := opt.client.GetOffset(topic, partition, sarama.OffsetNewest)
+				newestOffset, err := option.client.GetOffset(topic, partition, sarama.OffsetNewest)
 				if err != nil {
 					common.ErrorExit(err, "Cannot get current offset of topic: %s, partition: %d, %s", topic, partition)
 				} else {
@@ -71,7 +72,7 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 				}
 
 				// Oldest offset.
-				oldestOffset, err := opt.client.GetOffset(topic, partition, sarama.OffsetOldest)
+				oldestOffset, err := option.client.GetOffset(topic, partition, sarama.OffsetOldest)
 				if err != nil {
 					common.ErrorExit(err, "Cannot get current oldest offset of topic: %s, partition: %d, %s", topic, partition)
 				} else {

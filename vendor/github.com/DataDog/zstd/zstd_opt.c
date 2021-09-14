@@ -10,7 +10,7 @@
 
 #include "zstd_compress_internal.h"
 #include "hist.h"
-#include "zstd_opt.h"
+#include "zstd_option.h"
 
 
 #define ZSTD_LITFREQ_ADD    2   /* scaling factor for litFreq, so that frequencies adapt faster to new stats */
@@ -1129,7 +1129,7 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
     memcpy(tmpRep, rep, sizeof(tmpRep));
 
     DEBUGLOG(4, "ZSTD_initStats_ultra (srcSize=%zu)", srcSize);
-    assert(ms->opt.litLengthSum == 0);    /* first block */
+    assert(ms->option.litLengthSum == 0);    /* first block */
     assert(seqStore->sequences == seqStore->sequencesStart);   /* no ldm */
     assert(ms->window.dictLimit == ms->window.lowLimit);   /* no dictionary */
     assert(ms->window.dictLimit - ms->nextToUpdate <= 1);  /* no prefix (note: intentional overflow, defined as 2-complement) */
@@ -1172,7 +1172,7 @@ size_t ZSTD_compressBlock_btultra2(
      * The compression ratio gain is generally small (~0.5% on first block),
      * the cost is 2x cpu time on first block. */
     assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
-    if ( (ms->opt.litLengthSum==0)   /* first block */
+    if ( (ms->option.litLengthSum==0)   /* first block */
       && (seqStore->sequences == seqStore->sequencesStart)  /* no ldm */
       && (ms->window.dictLimit == ms->window.lowLimit)   /* no dictionary */
       && (current == ms->window.dictLimit)   /* start of frame, nothing already loaded nor skipped */

@@ -24,11 +24,11 @@ import (
  * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
  * @date 19-07-22
  */
-func WriteFile(path string, data []byte, overlay bool) error {
+func WriteFile(path string, data []byte, append bool) error {
 	if !Exists(path) {
 		os.Create(path)
 	}
-	if overlay {
+	if append {
 		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 		if err != nil {
 			return err

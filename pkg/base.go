@@ -17,13 +17,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/Shopify/sarama"
-	"github.com/krallistic/kazoo-go"
-	"github.com/wl4g/kafka_offset_tool/pkg/common"
 	"log"
 	"math/rand"
 	"strings"
 	"sync"
+
+	"github.com/Shopify/sarama"
+	"github.com/krallistic/kazoo-go"
+	"github.com/wl4g/kafka_offset_tool/pkg/common"
 )
 
 /**
@@ -32,37 +33,37 @@ import (
  * @date 19-07-18
  */
 func ensureConnected() error {
-	if opt.client == nil {
+	if option.client == nil {
 		log.Printf("Connect to kafka servers...")
 
 		// Init configuration.
 		config := sarama.NewConfig()
 		config.ClientID = fmt.Sprintf("kafkaOffsetTool-%d", rand.Int())
-		if kafkaVer, e1 := sarama.ParseKafkaVersion(opt.kafkaVersion); e1 == nil {
+		if kafkaVer, e1 := sarama.ParseKafkaVersion(option.kafkaVersion); e1 == nil {
 			config.Version = kafkaVer
 		} else {
 			common.ErrorExit(e1, "Unrecognizable kafka version.")
 		}
 
 		// Connect kafka brokers.
-		if client, e2 := sarama.NewClient(strings.Split(opt.brokers, ","), config); e2 == nil {
-			opt.client = client
+		if client, e2 := sarama.NewClient(strings.Split(option.brokers, ","), config); e2 == nil {
+			option.client = client
 		} else {
-			common.ErrorExit(e2, "Unable connect kafka brokers. %s", opt.brokers)
+			common.ErrorExit(e2, "Unable connect kafka brokers. %s", option.brokers)
 		}
-		// defer opt.client.Close()
+		// defer option.client.Close()
 
 		// Connect zookeeper servers.
-		if zkClient, e3 := kazoo.NewKazoo(strings.Split(opt.zkServers, ","), nil); e3 == nil {
-			opt.zkClient = zkClient
+		if zkClient, e3 := kazoo.NewKazoo(strings.Split(option.zkServers, ","), nil); e3 == nil {
+			option.zkClient = zkClient
 			// Do you have to get it to check the connection ???
 			if _, e4 := zkClient.Brokers(); e4 != nil {
-				common.ErrorExit(e4, "Unable connect zk servers. %s", opt.zkServers)
+				common.ErrorExit(e4, "Unable connect zk servers. %s", option.zkServers)
 			}
 		} else {
-			common.ErrorExit(e3, "Unable connect zk servers. %s", opt.zkServers)
+			common.ErrorExit(e3, "Unable connect zk servers. %s", option.zkServers)
 		}
-		// defer opt.zkClient.Close()
+		// defer option.zkClient.Close()
 	}
 	return nil
 }
@@ -73,7 +74,7 @@ func ensureConnected() error {
  * @date 19-07-18
  */
 func listBrokers() []*sarama.Broker {
-	brokers := opt.client.Brokers()
+	brokers := option.client.Brokers()
 	if len(brokers) <= 0 {
 		common.FatalExit("Cannot get brokers.")
 	}
@@ -110,7 +111,7 @@ func hasGroupType(consumerType string) (bool, bool) {
  */
 func listGroupIdAll() map[string]string {
 	var groupIdAll = make(map[string]string, 0)
-	hasKfGroup, hasZkGroup := hasGroupType(opt.consumerType)
+	hasKfGroup, hasZkGroup := hasGroupType(option.consumerType)
 
 	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
@@ -149,7 +150,7 @@ func listGroupIdAll() map[string]string {
  */
 func listZkGroupIdAll() []string {
 	groupIds := make([]string, 0)
-	if _consumerGroups, e1 := opt.zkClient.Consumergroups(); e1 != nil {
+	if _consumerGroups, e1 := option.zkClient.Consumergroups(); e1 != nil {
 		common.ErrorExit(e1, "Failed to get consumer group by zk!")
 	} else {
 		for _, _consumerGroup := range _consumerGroups {
@@ -180,7 +181,7 @@ func listKafkaGroupIdAll() []string {
  * @date 19-07-20
  */
 func listKafkaGroupId(broker *sarama.Broker) []string {
-	if err := broker.Open(opt.client.Config()); err != nil && err != sarama.ErrAlreadyConnected {
+	if err := broker.Open(option.client.Config()); err != nil && err != sarama.ErrAlreadyConnected {
 		common.ErrorExit(err, "Cannot connect to brokerID: %d, %s", broker.ID())
 	}
 
@@ -210,7 +211,7 @@ func listKafkaGroupId(broker *sarama.Broker) []string {
  * @date 19-07-20
  */
 func listTopicAll() []string {
-	var topics, err = opt.client.Topics()
+	var topics, err = option.client.Topics()
 	if err != nil {
 		common.ErrorExit(err, "Cannot get topics.")
 	}

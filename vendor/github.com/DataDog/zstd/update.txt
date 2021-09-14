@@ -37,8 +37,8 @@
 ./lib/zstd.h
 ./lib/common/zstd_internal.h
 ./lib/legacy/zstd_legacy.h
-./lib/compress/zstd_opt.c
-./lib/compress/zstd_opt.h
+./lib/compress/zstd_option.c
+./lib/compress/zstd_option.h
 ./lib/legacy/zstd_v01.c
 ./lib/legacy/zstd_v01.h
 ./lib/legacy/zstd_v02.c
