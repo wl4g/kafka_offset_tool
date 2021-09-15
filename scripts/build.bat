@@ -25,4 +25,4 @@ SET GOARCH=amd64
 SET BUILD_BRANCH=git branch|findstr "*"
 SET BUILD_VERSION=%BUILD_BRANCH:~2,20%
 
-go build -v -a -ldflags '-s -w' -gcflags="-trimpath=%BASE_DIR%" -asmflags="-trimpath=%BASE_DIR%" -o %BASE_DIR%\bin\kafkaOffsetTool_%BUILD_VERSION%_%GOOS%_%GOARCH% %BASE_DIR%\pkg\
+go build -v -a -ldflags '-s -w' -gcflags="all=-trimpath=%BASE_DIR%" -asmflags="all=-trimpath=%BASE_DIR%" -o %BASE_DIR%\bin\kafkaOffsetTool_%BUILD_VERSION%_%GOOS%_%GOARCH% %BASE_DIR%\pkg\

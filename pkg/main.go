@@ -98,7 +98,7 @@ func runCommand() {
 			Flags: []cli.Flag{
 				cli.StringFlag{Name: "brokers,b", Value: "127.0.0.1:9092", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &option.brokers},
 				cli.StringFlag{Name: "zkServers,z", Value: "127.0.0.1:2181", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &option.zkServers},
-				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. (default: 0.10.0.0) --version=0.10.0.0",
+				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "Sarama client connect backward compatible version of Kafka (major.minor.veryMinor.patch). default: 0.10.0.0",
 					Destination: &option.kafkaVersion},
 				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "GroupId regex filter. e.g. --filter='(^console\\S+)'",
 					Destination: &option.groupFilter},
@@ -140,7 +140,7 @@ func runCommand() {
 			Flags: []cli.Flag{
 				cli.StringFlag{Name: "brokers,b", Value: "127.0.0.1:9092", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &option.brokers},
 				cli.StringFlag{Name: "zkServers,z", Value: "127.0.0.1:2181", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &option.zkServers},
-				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. (default: 0.10.0.0) --version=0.10.0.0",
+				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "Sarama client connect backward compatible version of Kafka (major.minor.veryMinor.patch). default: 0.10.0.0",
 					Destination: &option.kafkaVersion},
 				cli.StringFlag{Name: "filter,f", Value: "*", Usage: "Topic regex filter. e.g. --filter='(^console\\S+)'", Destination: &option.topicFilter},
 			},
@@ -172,7 +172,7 @@ func runCommand() {
 			Flags: []cli.Flag{
 				cli.StringFlag{Name: "brokers,b", Value: "127.0.0.1:9092", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &option.brokers},
 				cli.StringFlag{Name: "zkServers,z", Value: "127.0.0.1:2181", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &option.zkServers},
-				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. --version=0.10.0.0",
+				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "Sarama client connect backward compatible version of Kafka (major.minor.veryMinor.patch). default: 0.10.0.0",
 					Destination: &option.kafkaVersion},
 				cli.StringFlag{Name: "groupFilter", Value: "*", Usage: "GroupId regex filter. e.g. --groupFilter='(^console\\S+)'",
 					Destination: &option.groupFilter},
@@ -263,7 +263,7 @@ func runCommand() {
 			Flags: []cli.Flag{
 				cli.StringFlag{Name: "brokers,b", Value: "127.0.0.1:9092", Usage: "e.g. --brokers=127.0.0.1:9092", Destination: &option.brokers},
 				cli.StringFlag{Name: "zkServers,z", Value: "127.0.0.1:2181", Usage: "e.g. --zkServers=127.0.0.1:2181", Destination: &option.zkServers},
-				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "e.g. --version=0.10.0.0",
+				cli.StringFlag{Name: "version,v", Value: "0.10.0.0", Usage: "Sarama client connect backward compatible version of Kafka (major.minor.veryMinor.patch). default: 0.10.0.0",
 					Destination: &option.kafkaVersion},
 				cli.StringFlag{Name: "group,g", Usage: "Specifies which consumer group offset to set. e.g. --group=mygroup", Destination: &option.setGroupId},
 				cli.StringFlag{Name: "topic,t", Usage: "Specifies which topic offset to set. e.g. --topic=mytopic", Destination: &option.setTopic},

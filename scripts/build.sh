@@ -23,6 +23,6 @@ export GOOS=linux # darwin
 export BUILD_VERSION=$(git branch|grep '*'|sed 's/* //g')
 
 go build -v -a -ldflags '-s -w' \
--gcflags="-trimpath=${BASE_DIR}" \
--asmflags="-trimpath=${BASE_DIR}" \
+-gcflags="all=-trimpath=${BASE_DIR}" \
+-asmflags="all=-trimpath=${BASE_DIR}" \
 -o ${BASE_DIR}/bin/kafkaOffsetTool_${BUILD_VERSION}_${GOOS}_${GOARCH} ${BASE_DIR}/pkg/
