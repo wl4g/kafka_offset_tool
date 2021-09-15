@@ -16,7 +16,9 @@
 package common
 
 import (
+	"bytes"
 	"fmt"
+
 	"github.com/bndr/gotabulate"
 )
 
@@ -43,4 +45,16 @@ func GridPrinf(title string, heads []string, dataset [][]interface{}) {
 
 	// Print the result: grid, or simple.
 	fmt.Printf("========== %s ==========\n%s\n", title, printStr)
+}
+
+/**
+ * Format println result information.
+ */
+func SimplePrinf(title string, values []string) {
+	buffer := bytes.Buffer{}
+	for _, groupId := range values {
+		buffer.WriteString(groupId)
+		buffer.WriteString("\n")
+	}
+	fmt.Printf("\n----- %s -----\n%s\n", title, buffer.String())
 }

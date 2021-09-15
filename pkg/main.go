@@ -159,8 +159,8 @@ func runCommand() {
 						dataset = append(dataset, topicName)
 					}
 				}
-				common.PrintResult("List of topics information.", dataset)
-				log.Printf("\n => Result: %d row processed (%f second) finished!", len(dataset),
+				common.SimplePrinf("List of topics information.", dataset)
+				log.Printf(" => Result: %d row processed (%f second) finished!", len(dataset),
 					common.CostSecond(begin))
 				return nil
 			},
@@ -198,13 +198,17 @@ func runCommand() {
 				// Extract & analysis consumed partition offsets.
 				groupConsumedOffset := analysisConsumedTopicPartitionOffsets(option.consumerType)
 
-				// Filtering by group and topic and consumer.
+				// Filtering by group.
 				for group, consumedTopicOffset := range groupConsumedOffset {
 					if !common.Match(option.groupFilter, group) {
 						delete(groupConsumedOffset, group)
+					} else {
+						// Filtering by topic.
 						for topic, partitionOffset := range consumedTopicOffset {
 							if !common.Match(option.topicFilter, topic) {
 								delete(consumedTopicOffset, topic)
+							} else {
+								// Filtering by consumer.
 								for partition, consumedOffset := range partitionOffset {
 									memberString := consumedOffset.memberAsString()
 									if !common.Match(option.consumerFilter, memberString) {

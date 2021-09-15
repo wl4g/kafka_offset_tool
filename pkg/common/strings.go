@@ -16,7 +16,6 @@
 package common
 
 import (
-	"bytes"
 	"fmt"
 	"regexp"
 	"strings"
@@ -61,7 +60,7 @@ func Match(regex string, value string) bool {
 	if IsBlank(regex) || IsBlank(value) {
 		return false
 	}
-	if strings.TrimSpace(regex) == "*" {
+	if strings.TrimSpace(regex) == "*" || regex == value {
 		return true
 	}
 	match, err := regexp.Match(regex, []byte(value))
@@ -69,16 +68,4 @@ func Match(regex string, value string) bool {
 		panic(fmt.Sprintf("Invalid regular expression for %s", regex))
 	}
 	return match
-}
-
-/**
- * Format println result information.
- */
-func PrintResult(title string, values []string) {
-	buffer := bytes.Buffer{}
-	for _, groupId := range values {
-		buffer.WriteString(groupId)
-		buffer.WriteString("\n")
-	}
-	fmt.Printf("\n======== %s ========\n%s", title, buffer.String())
 }

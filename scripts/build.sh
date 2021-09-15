@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-BASE_DIR=$(cd "`dirname $0`"; pwd)
-mkdir -p ${BASE_DIR}/../bin
+BASE_DIR=$(cd "`dirname $0`"/..; pwd)
+mkdir -p ${BASE_DIR}/bin
 
 export CGO_ENABLED=0
 # ubuntu:/lib/i386-linux-gnu/libc.so.6, centos:/usr/lib64/libc.so
@@ -23,6 +23,6 @@ export GOOS=linux # darwin
 export BUILD_VERSION=$(git branch|grep '*'|sed 's/* //g')
 
 go build -v -a -ldflags '-s -w' \
--gcflags="all=-trimpath=${BASE_DIR}" \
--asmflags="all=-trimpath=${BASE_DIR}" \
--o ${BASE_DIR}/../bin/kafkaOffsetTool_${BUILD_VERSION}_${GOOS}_${GOARCH} ${BASE_DIR}/../pkg/
+-gcflags="-trimpath=${BASE_DIR}" \
+-asmflags="-trimpath=${BASE_DIR}" \
+-o ${BASE_DIR}/bin/kafkaOffsetTool_${BUILD_VERSION}_${GOOS}_${GOARCH} ${BASE_DIR}/pkg/
