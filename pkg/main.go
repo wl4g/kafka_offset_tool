@@ -292,14 +292,14 @@ func runCommand() {
 			Usage:       "offset-calc [OPTIONS]...",
 			Description: "Tool commands for calculator kafka offsets in file.",
 			Flags: []cli.Flag{
-				cli.StringFlag{Name: "increment,I", Usage: "The increment used to calculate the offset, which can be negative. e.g. --I=1000", Destination: &option.increment},
-				cli.StringFlag{Name: "inputFile,i", Usage: "Load the offset configuration to set from the local file path. e.g. --inputFile=myoffset1.json", Destination: &option.inputFile},
-				cli.StringFlag{Name: "outputFile,o", Usage: "Output the calculated configuration to the local file. e.g. --outputFile=myoffset2.json", Destination: &option.outputFile},
+				cli.StringFlag{Name: "inputFile,i", Required: true, Usage: "Load the offset configuration to set from the local file path. e.g. --inputFile=myoffset1.json", Destination: &option.inputFile},
+				cli.StringFlag{Name: "outputFile,o", Required: true, Usage: "Output the calculated configuration to the local file. e.g. --outputFile=myoffset2.json", Destination: &option.outputFile},
+				cli.StringFlag{Name: "increment,I", Required: true, Usage: "The increment used to calculate the offset, which can be negative. e.g. --I=1000", Destination: &option.increment},
 			},
 			Before: func(c *cli.Context) error {
-				if common.IsAnyBlank(option.inputFile, option.outputFile) || option.increment == "" {
-					common.FatalExit("Invalid arguments '--inputFile,-i/--outputFile,-o/--increment,-I' is required")
-				}
+				// if common.IsAnyBlank(option.inputFile, option.outputFile) || option.increment == "" {
+				// 	common.FatalExit("Invalid arguments '--inputFile,-i/--outputFile,-o/--increment,-I' is required")
+				// }
 				return nil
 			},
 			Action: func(c *cli.Context) error {
