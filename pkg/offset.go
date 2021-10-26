@@ -71,8 +71,8 @@ func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId st
 							if setOffset >= consumedOffset.OldestOffset && setOffset <= consumedOffset.ConsumedOffset {
 								matched = true
 							} else { // Invalid
-								common.Warning("Failed to set offset, must be between %d and %d - setGroupId: %s, setTopic: %s, setPartition: %d, setOffset: %d", consumedOffset.OldestOffset,
-									consumedOffset.ConsumedOffset, setGroupId, setTopic, setPartition, setOffset)
+								common.Warning("Invalid set offsets, must be between %d and %d of setGroupId: %s, setTopic: %s, setPartition: %d, setOffset: %d",
+									consumedOffset.OldestOffset, consumedOffset.ConsumedOffset, setGroupId, setTopic, setPartition, setOffset)
 							}
 							break
 						}
@@ -99,7 +99,7 @@ func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId st
 			doSetZookeeperOffset(setGroupId, setTopic, setPartition, setOffset)
 		}
 	} else {
-		common.Warning("Failed to set offset, because no matchs setting group: %s, topic: %s, partition: %s",
+		common.Warning("Failed to set offset, because no matchs setting group: %s, topic: %s, partition: %d",
 			setGroupId, setTopic, setPartition)
 	}
 }
@@ -114,6 +114,7 @@ func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, se
 	// Handle reset offset.
 	var offsetManager, err1 = sarama.NewOffsetManagerFromClient(setGroupId, option.client)
 	var pom, err2 = offsetManager.ManagePartition(setTopic, int32(setPartition))
+	defer pom.Close()
 	if err1 != nil || err2 != nil {
 		common.Warning("Failed to set kafka offset(%d) for group(%s), topic(%s), partition(%d). - err1: %v, err2: %v",
 			setOffset, setTopic, setGroupId, setPartition, err1, err2)
@@ -126,7 +127,6 @@ func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, se
 
 	// Sleep 1s, because the reset may not have been committed.
 	time.Sleep(2 * time.Second)
-	defer pom.Close()
 
 	log.Printf("Seted kafka direct offset(%d) for group(%s), topic(%s), partition(%d) completed!",
 		setOffset, setTopic, setGroupId, setPartition)

@@ -82,7 +82,7 @@ func analysisConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOff
 	producedOffsets := getProducedTopicPartitionOffsets()
 	log.Printf("Extract & analysis group topic partition offset relation...")
 
-	mu := sync.Mutex{}
+	// mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
 
 	// Consumed offsets of groups.
@@ -97,9 +97,7 @@ func analysisConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOff
 		go func() {
 			defer wg.Done()
 			for _, broker := range listBrokers() {
-				mu.Lock()
 				groupIds := listKafkaGroupId(broker)
-				mu.Unlock()
 
 				// Describe groups.
 				describeGroups, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: groupIds})
@@ -138,10 +136,8 @@ func analysisConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOff
 							}
 
 							// Current consumed offset.
-							mu.Lock()
 							_consumedOffset := ConsumedOffset{ConsumerType: KFType}
 							_consumedOffset.ConsumedOffset = offsetFetchResponseBlock.Offset
-							mu.Unlock()
 
 							// Lag of group partition.
 							if _producedOffset, e4 := producedOffsets[topic][partition]; e4 {
@@ -154,20 +150,18 @@ func analysisConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOff
 									lag = _producedOffset.NewestOffset - offsetFetchResponseBlock.Offset
 								}
 
-								mu.Lock()
 								_consumedOffset.Lag = lag
 								_consumedOffset.NewestOffset = _producedOffset.NewestOffset
 								_consumedOffset.OldestOffset = _producedOffset.OldestOffset
-								mu.Unlock()
 							} else {
 								log.Printf("No offsetInfo of topic: %s, partition: %d, %v", topic, partition, e4)
 							}
 
 							// Consumed group member.
-							mu.Lock()
+							// mu.Lock()
 							_consumedOffset.Member = getGroupMember(group.Members, topic, partition)
 							consumedOffsets[group.GroupId][topic][partition] = _consumedOffset
-							mu.Unlock()
+							// mu.Unlock()
 						}
 					}
 				}
@@ -184,37 +178,25 @@ func analysisConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOff
 				log.Printf("Cannot get consumer group(zookeeper). %v", e5)
 			} else {
 				for _, zkGroup := range zkConsumerGroups {
-					mu.Lock()
 					consumedOffsets[zkGroup.Name] = make(map[string]map[int32]ConsumedOffset)
-					mu.Unlock()
 
 					topics, _ := zkGroup.Topics()
 					for _, zkTopic := range topics {
-						mu.Lock()
 						consumedOffsets[zkGroup.Name][zkTopic.Name] = make(map[int32]ConsumedOffset)
-						mu.Unlock()
 
 						zkPartitions, _ := zkTopic.Partitions()
 						for _, zkPartition := range zkPartitions {
-							mu.Lock()
 							_consumedOffset := ConsumedOffset{ConsumerType: ZKType}
-							mu.Unlock()
 
 							// Current consumed offset.
 							zkConsumedOffset, _ := zkGroup.FetchOffset(zkTopic.Name, zkPartition.ID)
-							mu.Lock()
 							_consumedOffset.ConsumedOffset = zkConsumedOffset
-							mu.Unlock()
 							// Lag
 							if zkConsumedOffset > 0 {
-								mu.Lock()
 								_consumedOffset.Lag = producedOffsets[zkTopic.Name][zkPartition.ID].NewestOffset - zkConsumedOffset
-								mu.Unlock()
 							}
 
-							mu.Lock()
 							consumedOffsets[zkGroup.Name][zkTopic.Name][zkPartition.ID] = _consumedOffset
-							mu.Unlock()
 						}
 					}
 				}
