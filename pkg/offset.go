@@ -17,7 +17,6 @@ package main
 
 import (
 	"log"
-	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/wl4g/kafka_offset_tool/pkg/common"
@@ -32,10 +31,11 @@ func setOffset() {
 	log.Printf("Checking reset offset infor...")
 
 	// Check reset offset range of consumer group/topic/partition.
-	fetchedGroupConsumedOffsets := analysisConsumedTopicPartitionOffsets("*")
+	fetchedGroupConsumedOffsets := fetchConsumedTopicPartitionOffsets("*")
 
 	if !common.IsBlank(option.inputFile) {
 		log.Printf("Import file reset offset from %s ...", option.inputFile)
+
 		setGroupConsumedOffsets := GroupConsumedOffsets{}
 		common.ParseJSONFromFile(option.inputFile, &setGroupConsumedOffsets)
 
@@ -56,21 +56,19 @@ func setOffset() {
 /**
  * Do reset(kafka or zookeeper) topic group partitions offset.
  * See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
- * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
- * @date 19-07-20
  */
 func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId string, setTopic string, setPartition int64, setOffset int64) {
-	matched := false
+	// Check is valid?
+	valid := false
 	for groupId, topicPartitionOffsets := range fetchedGroupConsumedOffsets {
 		if groupId == setGroupId {
 			for topic, partitionOffsets := range topicPartitionOffsets {
 				if topic == setTopic {
 					for partition, consumedOffset := range partitionOffsets {
 						if int64(partition) == setPartition {
-							// Check valid?
 							if setOffset >= consumedOffset.OldestOffset && setOffset <= consumedOffset.ConsumedOffset {
-								matched = true
-							} else { // Invalid
+								valid = true
+							} else {
 								common.Warning("Invalid set offsets, must be between %d and %d of setGroupId: %s, setTopic: %s, setPartition: %d, setOffset: %d",
 									consumedOffset.OldestOffset, consumedOffset.ConsumedOffset, setGroupId, setTopic, setPartition, setOffset)
 							}
@@ -82,7 +80,7 @@ func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId st
 		}
 	}
 
-	if matched { // Matched group,topic,partition and valid
+	if valid { // Matched group,topic,partition and valid
 		// Check if the consumer type of the group is KAFKA direct(not zookeeper)?
 		isKafkaDirectConsumerGroup := false
 		for _, broker := range listBrokers() {
@@ -107,13 +105,12 @@ func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId st
 /**
  * Reset(kafka) topic group partitions offset.
  * See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
- * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
- * @date 19-07-20
  */
 func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, setOffset int64) {
 	// Handle reset offset.
 	var offsetManager, err1 = sarama.NewOffsetManagerFromClient(setGroupId, option.client)
 	var pom, err2 = offsetManager.ManagePartition(setTopic, int32(setPartition))
+	// 注：如果此时当前分区还有消费者是订阅中的状态，则 Close 会一直阻塞住。
 	defer pom.Close()
 	if err1 != nil || err2 != nil {
 		common.Warning("Failed to set kafka offset(%d) for group(%s), topic(%s), partition(%d). - err1: %v, err2: %v",
@@ -125,9 +122,6 @@ func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, se
 	log.Printf("Resetting offset via kafka direct...")
 	pom.ResetOffset(int64(setOffset), "modified_meta")
 
-	// Sleep 1s, because the reset may not have been committed.
-	time.Sleep(2 * time.Second)
-
 	log.Printf("Seted kafka direct offset(%d) for group(%s), topic(%s), partition(%d) completed!",
 		setOffset, setTopic, setGroupId, setPartition)
 }
@@ -135,8 +129,6 @@ func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, se
 /**
  * Reset(zookeeper) topic group partitions offset.
  * See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
- * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
- * @date 19-07-22
  */
 func doSetZookeeperOffset(setGroupId string, setTopic string, setPartition int64, setOffset int64) {
 	log.Printf("Preparing set zk offset range of group: %s, topic: %s, partition: %d, offset: %d ...",

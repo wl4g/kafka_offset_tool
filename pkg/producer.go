@@ -37,7 +37,7 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 	log.Printf("Fetching metadata of the topic partitions infor...")
 
 	// Describe topic partition offset.
-	//mu := sync.Mutex{}
+	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
 
 	producedTopicOffsets := make(map[string]map[int32]ProducedOffset)
@@ -50,7 +50,9 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 			if err != nil {
 				common.ErrorExit(err, "Cannot get partitions of topic: %s, %s", topic)
 			}
+			mu.Lock()
 			producedTopicOffsets[topic] = make(map[int32]ProducedOffset, len(partitions))
+			mu.Unlock()
 
 			for _, partition := range partitions {
 				//fmt.Printf("topic:%s, part:%d \n", topic, partition)
@@ -72,7 +74,9 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 					_topicOffset.OldestOffset = oldestOffset
 				}
 
+				mu.Lock()
 				producedTopicOffsets[topic][partition] = _topicOffset
+				mu.Unlock()
 			}
 		}(topic)
 	}

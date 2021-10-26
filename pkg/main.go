@@ -196,7 +196,7 @@ func runCommand() {
 			Action: func(c *cli.Context) error {
 				begin := time.Now().UnixNano()
 				// Extract & analysis consumed partition offsets.
-				groupConsumedOffset := analysisConsumedTopicPartitionOffsets(option.consumerType)
+				groupConsumedOffset := fetchConsumedTopicPartitionOffsets(option.consumerType)
 
 				// Filtering by group.
 				for group, consumedTopicOffset := range groupConsumedOffset {

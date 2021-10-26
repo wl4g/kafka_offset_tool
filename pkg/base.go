@@ -110,7 +110,7 @@ func hasGroupType(consumerType string) (bool, bool) {
  * @date 19-07-18
  */
 func listGroupIdAll() map[string]string {
-	var groupIdAll = make(map[string]string, 0)
+	var groupIdAll = make(map[string]string)
 	hasKfGroup, hasZkGroup := hasGroupType(option.consumerType)
 
 	mu := sync.Mutex{}
@@ -177,8 +177,6 @@ func listKafkaGroupIdAll() []string {
 
 /**
  * List of kafka direct groupId on kafka broker direct.
- * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
- * @date 19-07-20
  */
 func listKafkaGroupId(broker *sarama.Broker) []string {
 	if err := broker.Open(option.client.Config()); err != nil && err != sarama.ErrAlreadyConnected {
@@ -186,8 +184,11 @@ func listKafkaGroupId(broker *sarama.Broker) []string {
 	}
 
 	// Loop check connected.
-	for true {
-		connected, _ := broker.Connected()
+	for {
+		connected, err := broker.Connected()
+		if err != nil {
+			common.ErrorExit(err, "Failed to check broker connectd")
+		}
 		if connected {
 			break
 		}
@@ -207,8 +208,6 @@ func listKafkaGroupId(broker *sarama.Broker) []string {
 
 /**
  * List of topics on kafka broker direct.
- * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
- * @date 19-07-20
  */
 func listTopicAll() []string {
 	var topics, err = option.client.Topics()

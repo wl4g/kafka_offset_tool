@@ -77,10 +77,10 @@ func getGroupMember(members map[string]*sarama.GroupMemberDescription,
  * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
  * @date 19-07-20
  */
-func analysisConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOffsets {
+func fetchConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOffsets {
 	// Produced offsets of topics.
 	producedOffsets := getProducedTopicPartitionOffsets()
-	log.Printf("Extract & analysis group topic partition offset relation...")
+	log.Printf("Extracting and analysis group topic partition offset relation...")
 
 	// mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
