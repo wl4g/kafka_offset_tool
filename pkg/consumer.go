@@ -82,7 +82,7 @@ func fetchConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOffset
 	producedOffsets := getProducedTopicPartitionOffsets()
 	log.Printf("Extracting and analysis group topic partition offset relation...")
 
-	// mu := sync.Mutex{}
+	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
 
 	// Consumed offsets of groups.
@@ -105,7 +105,9 @@ func fetchConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOffset
 					common.ErrorExit(err, "Cannot get describe groupId: %s, %s", groupIds)
 				}
 				for _, group := range describeGroups.Groups {
+					mu.Lock()
 					consumedOffsets[group.GroupId] = make(map[string]map[int32]ConsumedOffset)
+					mu.Unlock()
 
 					// Group consumer by topic and partition all.
 					offsetFetchRequest := sarama.OffsetFetchRequest{ConsumerGroup: group.GroupId, Version: 1}
@@ -121,7 +123,9 @@ func fetchConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOffset
 						common.ErrorExit(err, "Cannot get offset of group: %s, %s", group.GroupId)
 					}
 					for topic, partitions := range offsetFetchResponse.Blocks {
+						mu.Lock()
 						consumedOffsets[group.GroupId][topic] = make(map[int32]ConsumedOffset)
+						mu.Unlock()
 
 						for partition, offsetFetchResponseBlock := range partitions {
 							// for testing.
@@ -158,10 +162,10 @@ func fetchConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOffset
 							}
 
 							// Consumed group member.
-							// mu.Lock()
+							mu.Lock()
 							_consumedOffset.Member = getGroupMember(group.Members, topic, partition)
 							consumedOffsets[group.GroupId][topic][partition] = _consumedOffset
-							// mu.Unlock()
+							mu.Unlock()
 						}
 					}
 				}
@@ -178,11 +182,15 @@ func fetchConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOffset
 				log.Printf("Cannot get consumer group(zookeeper). %v", e5)
 			} else {
 				for _, zkGroup := range zkConsumerGroups {
+					mu.Lock()
 					consumedOffsets[zkGroup.Name] = make(map[string]map[int32]ConsumedOffset)
+					mu.Unlock()
 
 					topics, _ := zkGroup.Topics()
 					for _, zkTopic := range topics {
+						mu.Lock()
 						consumedOffsets[zkGroup.Name][zkTopic.Name] = make(map[int32]ConsumedOffset)
+						mu.Unlock()
 
 						zkPartitions, _ := zkTopic.Partitions()
 						for _, zkPartition := range zkPartitions {
@@ -196,7 +204,9 @@ func fetchConsumedTopicPartitionOffsets(consumerType string) GroupConsumedOffset
 								_consumedOffset.Lag = producedOffsets[zkTopic.Name][zkPartition.ID].NewestOffset - zkConsumedOffset
 							}
 
+							mu.Lock()
 							consumedOffsets[zkGroup.Name][zkTopic.Name][zkPartition.ID] = _consumedOffset
+							mu.Unlock()
 						}
 					}
 				}
