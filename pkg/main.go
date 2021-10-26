@@ -38,7 +38,7 @@ _  __      __ _            ____   __  __          _    _______          _
 |_|\_\__,_|_| |_|\_\__,_|  \____/|_| |_| |___/\___|\__|  |_|\___/ \___/|_|
 	`
 	DESCRIPTION = "KafkaOffsetTool is a lightweight common for Kafka offset operation and maintenance."
-	VERSION     = "v1.2.5"
+	VERSION     = "v1.2.6"
 	WIKI        = "https://github.com/wl4g/kafka_offset_tool/blob/master/README.md"
 	AUTHORS     = "Wanglsir@gmail.com, 983708408@qq.com"
 )
