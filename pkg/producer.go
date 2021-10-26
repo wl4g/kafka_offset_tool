@@ -16,6 +16,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
@@ -30,22 +31,22 @@ type ProducedOffset struct {
 
 /**
  * Produced topic partition offsets.
- * @author Wang.sir <wanglsir@gmail.com,983708408@qq.com>
- * @date 19-07-20
+ * @return type of map[string]map[int32]ProducedOffset
  */
 func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
-	log.Printf("Fetching metadata of the topic partitions infor...")
+	log.Printf("Fetching metadata of the topic partitions info ...")
 
 	// Describe topic partition offset.
 	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
 
+	// producedTopicOffsets := sync.Map{}
 	producedTopicOffsets := make(map[string]map[int32]ProducedOffset)
 	for _, topic := range listTopicAll() {
-		//log.Printf("Fetching partition info for topics: %s ...", topic)
 		wg.Add(1)
 		go func(topic string) {
 			defer wg.Done()
+			log.Printf("Fetching partition by topic: %s ...", topic)
 			partitions, err := option.client.Partitions(topic)
 			if err != nil {
 				common.ErrorExit(err, "Cannot get partitions of topic: %s, %s", topic)
@@ -53,15 +54,17 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 			mu.Lock()
 			producedTopicOffsets[topic] = make(map[int32]ProducedOffset, len(partitions))
 			mu.Unlock()
+			// partitionOffset := make(map[int32]ProducedOffset, len(partitions))
+			// producedTopicOffsets.Store(topic, partitionOffset)
 
 			for _, partition := range partitions {
-				//fmt.Printf("topic:%s, part:%d \n", topic, partition)
+				fmt.Printf("Getting offset by topic: %s, partition: %d \n", topic, partition)
 				_topicOffset := ProducedOffset{}
 
 				// Largest offset(logSize).
 				newestOffset, err := option.client.GetOffset(topic, partition, sarama.OffsetNewest)
 				if err != nil {
-					common.ErrorExit(err, "Cannot get current offset of topic: %s, partition: %d, %s", topic, partition)
+					common.ErrorExit(err, "Cannot get current offset of topic: %s, partition: %d", topic, partition)
 				} else {
 					_topicOffset.NewestOffset = newestOffset
 				}
@@ -69,7 +72,7 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 				// Oldest offset.
 				oldestOffset, err := option.client.GetOffset(topic, partition, sarama.OffsetOldest)
 				if err != nil {
-					common.ErrorExit(err, "Cannot get current oldest offset of topic: %s, partition: %d, %s", topic, partition)
+					common.ErrorExit(err, "Cannot get current oldest offset of topic: %s, partition: %d", topic, partition)
 				} else {
 					_topicOffset.OldestOffset = oldestOffset
 				}
@@ -77,6 +80,7 @@ func getProducedTopicPartitionOffsets() map[string]map[int32]ProducedOffset {
 				mu.Lock()
 				producedTopicOffsets[topic][partition] = _topicOffset
 				mu.Unlock()
+				// partitionOffset[partition] = _topicOffset
 			}
 		}(topic)
 	}
