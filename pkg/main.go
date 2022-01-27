@@ -23,10 +23,11 @@ import (
 	"strconv"
 	"time"
 
+	"kafka_offset_tool/pkg/common"
+
 	"github.com/Shopify/sarama"
 	"github.com/krallistic/kazoo-go"
 	"github.com/urfave/cli"
-	"github.com/wl4g/kafka_offset_tool/pkg/common"
 )
 
 const (
@@ -312,14 +313,14 @@ func runCommand() {
 				if err != nil {
 					common.ErrorExit(err, "Failed to calculation offsets.")
 				}
-				groups, err1 := ToOrderedKeys(inputOffsets)
+				groups, err1 := common.ToOrderedKeys(inputOffsets)
 				if err1 != nil {
 					common.FatalExit(err1.Error())
 				}
 				for _, group := range groups {
 					topics := inputOffsets[group]
 					for topic, partitions := range topics {
-						partitionsOrdered, err2 := ToOrderedKeysInt(partitions)
+						partitionsOrdered, err2 := common.ToOrderedKeysInt(partitions)
 						if err2 != nil {
 							common.FatalExit(err2.Error())
 						}

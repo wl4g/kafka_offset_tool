@@ -7,6 +7,7 @@ require (
 	github.com/bndr/gotabulate v1.1.2
 	github.com/json-iterator/go v1.1.12
 	github.com/krallistic/kazoo-go v0.0.0-20170526135507-a15279744f4e
+	github.com/samuel/go-zookeeper v0.0.0-20201211165307-7117e9ea2414 // indirect
 	github.com/urfave/cli v1.22.5
 	github.com/wl4g/kafka_offset_tool v1.2.5
 )

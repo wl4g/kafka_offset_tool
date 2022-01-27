@@ -74,7 +74,8 @@
 - Modify offset calculator tool.
 
 ```bash
-./kafkaOffsetTool offset-calc --inputFile=myoffset.json --outputFile=myoffset2.json --increment -1000
+./kafkaOffsetTool calc-offset -i myoffset.json -o myoffset2.json -I -0.1
+#./kafkaOffsetTool calc-offset --inputFile myoffset.json --outputFile myoffset2.json --increment -0.1
 ```
 
 ### Welcome reporting bugs
