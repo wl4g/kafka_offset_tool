@@ -197,12 +197,12 @@ func runCommand() {
 			Action: func(c *cli.Context) error {
 				begin := time.Now().UnixNano()
 				// Extract & analysis consumed partition offsets.
-				groupConsumedOffset := fetchConsumedTopicPartitionOffsets(option.consumerType)
+				fetchedConsumedOffset := fetchConsumedTopicPartitionOffsets(option.consumerType)
 
 				// Filtering by group.
-				for group, consumedTopicOffset := range groupConsumedOffset {
+				for group, consumedTopicOffset := range fetchedConsumedOffset {
 					if !common.Match(option.groupFilter, group) {
-						delete(groupConsumedOffset, group)
+						delete(fetchedConsumedOffset, group)
 					} else {
 						// Filtering by topic.
 						for topic, partitionOffset := range consumedTopicOffset {
@@ -223,7 +223,7 @@ func runCommand() {
 
 				// export?
 				if !common.IsBlank(option.outputFile) {
-					data := []byte(common.ToJSONString(groupConsumedOffset, true))
+					data := []byte(common.ToJSONString(fetchedConsumedOffset, true))
 					if err := common.WriteFile(option.outputFile, data, false); err != nil {
 						common.ErrorExit(err, "Failed to export consumed offset to '%s'", option.outputFile)
 					}
@@ -232,7 +232,7 @@ func runCommand() {
 				} else { // Grid print.
 					// Transform to dataset
 					dataset := make([][]interface{}, 0)
-					for group, consumedTopicOffset := range groupConsumedOffset {
+					for group, consumedTopicOffset := range fetchedConsumedOffset {
 						for topic, partitionOffset := range consumedTopicOffset {
 							for partition, consumedOffset := range partitionOffset {
 								memberString := consumedOffset.memberAsString()
@@ -312,9 +312,19 @@ func runCommand() {
 				if err != nil {
 					common.ErrorExit(err, "Failed to calculation offsets.")
 				}
-				for group, topics := range inputOffsets {
+				groups, err1 := ToOrderedKeys(inputOffsets)
+				if err1 != nil {
+					common.FatalExit(err1.Error())
+				}
+				for _, group := range groups {
+					topics := inputOffsets[group]
 					for topic, partitions := range topics {
-						for partition, consumedOffset := range partitions {
+						partitionsOrdered, err2 := ToOrderedKeysInt(partitions)
+						if err2 != nil {
+							common.FatalExit(err2.Error())
+						}
+						for _, partition := range partitionsOrdered {
+							consumedOffset := partitions[int32(partition)]
 							if !(consumedOffset.ConsumedOffset >= consumedOffset.OldestOffset && consumedOffset.ConsumedOffset <= consumedOffset.NewestOffset && consumedOffset.OldestOffset >= -1) {
 								common.FatalExit("Invalid calculate offsets configuration. before changed offsets consumed: %v, old: %v, new: %v",
 									consumedOffset.ConsumedOffset, consumedOffset.OldestOffset, consumedOffset.NewestOffset)
@@ -334,7 +344,7 @@ func runCommand() {
 									afterChanged, consumedOffset.NewestOffset)
 							}
 							consumedOffset.Lag = int64(math.Abs(float64(consumedOffset.NewestOffset - afterChanged)))
-							partitions[partition] = consumedOffset
+							partitions[int32(partition)] = consumedOffset
 							log.Printf("Calculated to group: %s, topic: %s, partition: %s, offset: %v => %v",
 								group, topic, strconv.FormatInt(int64(partition), 10), beforeChanged, afterChanged)
 						}

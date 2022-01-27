@@ -15,14 +15,15 @@
  */
 package common
 
-import "sort"
+import (
+	"math"
+)
 
-// To input map keys ordered.
-func ToOrderedKeys(inputMap map[string]interface{}) []string {
-	keys := make([]string, 0, len(inputMap))
-	for key := range inputMap {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
+/**
+ * Trunc 2bit decimal.
+ */
+func DecimalTrunc2b(value float64) float64 {
+	//value, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", value), 32)
+	// 0.5 is to calculate rounding. If you want to keep a few decimal places, you can change 3.
+	return math.Trunc(value*1e3+0.5) * 1e-3
 }
