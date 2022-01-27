@@ -126,12 +126,14 @@ func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, se
 	// consumed offset, and the PartitionOffsetManager#MarkOffset() method can be marked to be newer than the currently consumed offset
 	if forEarliest {
 		pom.ResetOffset(setOffset, "modified_meta")
+		log.Printf("Reseted kafka direct offset(%d) for group(%s), topic(%s), partition(%d) completed!",
+			setOffset, setTopic, setGroupId, setPartition)
 	} else {
 		pom.MarkOffset(setOffset, "modified_meta")
+		log.Printf("Marked kafka direct offset(%d) for group(%s), topic(%s), partition(%d) completed!",
+			setOffset, setTopic, setGroupId, setPartition)
 	}
 
-	log.Printf("Seted kafka direct offset(%d) for group(%s), topic(%s), partition(%d) completed!",
-		setOffset, setTopic, setGroupId, setPartition)
 }
 
 /**
