@@ -315,7 +315,7 @@ func runCommand() {
 				for group, topics := range input {
 					for topic, partitions := range topics {
 						for partition, consumedOffset := range partitions {
-							if !(consumedOffset.ConsumedOffset >= consumedOffset.OldestOffset && consumedOffset.ConsumedOffset <= consumedOffset.NewestOffset && consumedOffset.OldestOffset >= 0) {
+							if !(consumedOffset.ConsumedOffset >= consumedOffset.OldestOffset && consumedOffset.ConsumedOffset <= consumedOffset.NewestOffset && consumedOffset.OldestOffset >= -1) {
 								common.FatalExit("Invalid calculate offsets configuration. before changed offsets consumed: %v, old: %v, new: %v",
 									consumedOffset.ConsumedOffset, consumedOffset.OldestOffset, consumedOffset.NewestOffset)
 							}
