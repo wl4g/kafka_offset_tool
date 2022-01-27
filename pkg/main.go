@@ -296,7 +296,7 @@ func runCommand() {
 			Flags: []cli.Flag{
 				cli.StringFlag{Name: "inputFile,i", Required: true, Usage: "Load the offset configuration to set from the local file path. e.g. -i=myoffset1.json", Destination: &option.inputFile},
 				cli.StringFlag{Name: "outputFile,o", Required: true, Usage: "Output the calculated configuration to the local file. e.g. -o=myoffset2.json", Destination: &option.outputFile},
-				cli.StringFlag{Name: "increment,I", Required: true, Usage: "The increment logSize percentage used to calculate the offset(Negative are allowed). Equivalent to: newConsumerdOffset=oldOffset+incrPercent*(newOffset-oldOffset). for example: -I=-0.1", Destination: &option.increment},
+				cli.StringFlag{Name: "increment,I", Required: true, Usage: "The increment logSize percentage used to calculate the offset(Negative not allowed). Equivalent to: newConsumerdOffset=oldOffset+incrPercent*(newOffset-oldOffset). for example: -I=0.1", Destination: &option.increment},
 			},
 			Before: func(c *cli.Context) error {
 				// if common.IsAnyBlank(option.inputFile, option.outputFile) || option.increment == "" {
@@ -312,6 +312,9 @@ func runCommand() {
 				incr, err := strconv.ParseFloat(option.increment, 10)
 				if err != nil {
 					common.ErrorExit(err, "Failed to calculation offsets.")
+				}
+				if incr <= 0 {
+					common.ErrorExit(err, "Increment must > 0.0f")
 				}
 				groupNamesOrdered, err1 := common.ToOrderedKeys(inputOffsets)
 				if err1 != nil {
