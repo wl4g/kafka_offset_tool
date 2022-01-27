@@ -18,6 +18,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -288,13 +289,13 @@ func runCommand() {
 			},
 		},
 		{
-			Name:        "offset-calc",
-			Usage:       "offset-calc [OPTIONS]...",
-			Description: "Tool commands for calculator kafka offsets in file.",
+			Name:        "calc-offset",
+			Usage:       "calc-offset [OPTIONS]...",
+			Description: "Tool commands for calculating kafka offsets in configuration.",
 			Flags: []cli.Flag{
 				cli.StringFlag{Name: "inputFile,i", Required: true, Usage: "Load the offset configuration to set from the local file path. e.g. -i=myoffset1.json", Destination: &option.inputFile},
 				cli.StringFlag{Name: "outputFile,o", Required: true, Usage: "Output the calculated configuration to the local file. e.g. -o=myoffset2.json", Destination: &option.outputFile},
-				cli.StringFlag{Name: "increment,I", Required: true, Usage: "The increment used to calculate the offset, which can be negative. e.g. -I=1000", Destination: &option.increment},
+				cli.StringFlag{Name: "increment,I", Required: true, Usage: "The increment percentage used to calculate the offset(Negative are allowed). e.g. -I=-0.2", Destination: &option.increment},
 			},
 			Before: func(c *cli.Context) error {
 				// if common.IsAnyBlank(option.inputFile, option.outputFile) || option.increment == "" {
@@ -307,23 +308,35 @@ func runCommand() {
 				common.ParseJSONFromFile(option.inputFile, &input)
 
 				// calculation offset
-				incr, err := strconv.ParseInt(option.increment, 10, 64)
+				incr, err := strconv.ParseFloat(option.increment, 10)
 				if err != nil {
 					common.ErrorExit(err, "Failed to calculation offsets.")
 				}
 				for group, topics := range input {
 					for topic, partitions := range topics {
 						for partition, consumedOffset := range partitions {
-							// increment offset to new value
-							beforeChanged := consumedOffset.ConsumedOffset
-							afterChanged := beforeChanged + incr
-							if afterChanged > 0 {
-								consumedOffset.ConsumedOffset = afterChanged
-								// Change element
-								partitions[partition] = consumedOffset
+							if !(consumedOffset.ConsumedOffset >= consumedOffset.OldestOffset && consumedOffset.ConsumedOffset <= consumedOffset.NewestOffset && consumedOffset.OldestOffset >= 0) {
+								common.FatalExit("Invalid calculate offsets configuration. ConsumedOffset: %s, OldestOffset: %s, NewestOffset: %s",
+									consumedOffset.ConsumedOffset, consumedOffset.OldestOffset, consumedOffset.NewestOffset)
 							}
-							log.Printf("Calculating to group: %s, topic: %s, partition: %s, offset: %v => %v",
-								group, topic, strconv.FormatInt(int64(partition), 10), beforeChanged, consumedOffset.ConsumedOffset)
+							beforeChanged := consumedOffset.ConsumedOffset
+							logSize := incr * math.Abs(float64(consumedOffset.NewestOffset-consumedOffset.OldestOffset))
+							afterChanged := beforeChanged + int64(logSize)
+							if afterChanged >= consumedOffset.OldestOffset && afterChanged <= consumedOffset.NewestOffset {
+								consumedOffset.ConsumedOffset = afterChanged
+							} else if afterChanged < consumedOffset.OldestOffset {
+								common.Warning("The calculated offset < oldestOffset, use the oldest offset directly. ConsumedOffset: %s, OldestOffset: %s, NewestOffset: %s",
+									consumedOffset.ConsumedOffset, consumedOffset.OldestOffset, consumedOffset.NewestOffset)
+								consumedOffset.ConsumedOffset = consumedOffset.OldestOffset
+							} else {
+								common.Warning("The calculated offset < NewestOffset, use the newest offset directly. ConsumedOffset: %s, OldestOffset: %s, NewestOffset: %s",
+									consumedOffset.ConsumedOffset, consumedOffset.OldestOffset, consumedOffset.NewestOffset)
+								consumedOffset.ConsumedOffset = consumedOffset.NewestOffset
+							}
+							consumedOffset.Lag = int64(math.Abs(float64(consumedOffset.NewestOffset - afterChanged)))
+							partitions[partition] = consumedOffset
+							log.Printf("Calculated to group: %s, topic: %s, partition: %s, offset: %v => %v",
+								group, topic, strconv.FormatInt(int64(partition), 10), beforeChanged, afterChanged)
 						}
 					}
 				}

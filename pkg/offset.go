@@ -69,7 +69,7 @@ func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId st
 							if setOffset >= consumedOffset.OldestOffset && setOffset <= consumedOffset.ConsumedOffset {
 								valid = true
 							} else {
-								common.Warning("Invalid set offsets, must be between %d and %d of setGroupId: %s, setTopic: %s, setPartition: %d, setOffset: %d",
+								common.Warning("Cannot set offsets, must be between %d and %d of setting parameters groupId: %s, topic: %s, partition: %d, offset: %d",
 									consumedOffset.OldestOffset, consumedOffset.ConsumedOffset, setGroupId, setTopic, setPartition, setOffset)
 							}
 							break
