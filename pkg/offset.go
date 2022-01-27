@@ -66,11 +66,11 @@ func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId st
 				if topic == setTopic {
 					for partition, consumedOffset := range partitionOffsets {
 						if int64(partition) == setPartition {
-							if setOffset >= consumedOffset.OldestOffset && setOffset <= consumedOffset.ConsumedOffset {
+							if setOffset >= consumedOffset.OldestOffset && setOffset <= consumedOffset.NewestOffset {
 								valid = true
 							} else {
 								common.Warning("Cannot set offsets, must be between %d and %d of setting parameters groupId: %s, topic: %s, partition: %d, offset: %d",
-									consumedOffset.OldestOffset, consumedOffset.ConsumedOffset, setGroupId, setTopic, setPartition, setOffset)
+									consumedOffset.OldestOffset, consumedOffset.NewestOffset, setGroupId, setTopic, setPartition, setOffset)
 							}
 							break
 						}
