@@ -327,8 +327,9 @@ func runCommand() {
 						for _, partition := range partitionsOrdered {
 							consumedOffset := partitions[int32(partition)]
 							if !(consumedOffset.ConsumedOffset >= consumedOffset.OldestOffset && consumedOffset.ConsumedOffset <= consumedOffset.NewestOffset && consumedOffset.OldestOffset >= -1) {
-								common.FatalExit("Invalid calculate offsets configuration. before changed offsets consumed: %v, old: %v, new: %v",
-									consumedOffset.ConsumedOffset, consumedOffset.OldestOffset, consumedOffset.NewestOffset)
+								common.Warning("Unable calculate offsets of group: %s, topic: %s, partition: %v, consumed: %v, old: %v, new: %v",
+									group, topic, partition, consumedOffset.ConsumedOffset, consumedOffset.OldestOffset, consumedOffset.NewestOffset)
+								continue
 							}
 							beforeChanged := consumedOffset.ConsumedOffset
 							logSize := incr * math.Abs(float64(consumedOffset.NewestOffset-consumedOffset.OldestOffset))
@@ -346,8 +347,8 @@ func runCommand() {
 							}
 							consumedOffset.Lag = int64(math.Abs(float64(consumedOffset.NewestOffset - afterChanged)))
 							partitions[int32(partition)] = consumedOffset
-							log.Printf("Calculated to group: %s, topic: %s, partition: %s, offset: %v => %v",
-								group, topic, strconv.FormatInt(int64(partition), 10), beforeChanged, afterChanged)
+							log.Printf("Calculated to group: %s, topic: %s, partition: %v, offset: %v => %v",
+								group, topic, partition, beforeChanged, afterChanged)
 						}
 					}
 				}
