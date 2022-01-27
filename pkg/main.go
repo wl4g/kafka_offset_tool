@@ -295,7 +295,7 @@ func runCommand() {
 			Flags: []cli.Flag{
 				cli.StringFlag{Name: "inputFile,i", Required: true, Usage: "Load the offset configuration to set from the local file path. e.g. -i=myoffset1.json", Destination: &option.inputFile},
 				cli.StringFlag{Name: "outputFile,o", Required: true, Usage: "Output the calculated configuration to the local file. e.g. -o=myoffset2.json", Destination: &option.outputFile},
-				cli.StringFlag{Name: "increment,I", Required: true, Usage: "The increment percentage used to calculate the offset(Negative are allowed). e.g. -I=-0.2", Destination: &option.increment},
+				cli.StringFlag{Name: "increment,I", Required: true, Usage: "The increment logSize percentage used to calculate the offset(Negative are allowed). Equivalent to: newConsumerdOffset=oldConsumedOffset+incrPercent*(newOffset-oldOffset). for example: -I=-0.1", Destination: &option.increment},
 			},
 			Before: func(c *cli.Context) error {
 				// if common.IsAnyBlank(option.inputFile, option.outputFile) || option.increment == "" {
@@ -316,7 +316,7 @@ func runCommand() {
 					for topic, partitions := range topics {
 						for partition, consumedOffset := range partitions {
 							if !(consumedOffset.ConsumedOffset >= consumedOffset.OldestOffset && consumedOffset.ConsumedOffset <= consumedOffset.NewestOffset && consumedOffset.OldestOffset >= 0) {
-								common.FatalExit("Invalid calculate offsets configuration. ConsumedOffset: %s, OldestOffset: %s, NewestOffset: %s",
+								common.FatalExit("Invalid calculate offsets configuration. before changed offsets consumed: %v, old: %v, new: %v",
 									consumedOffset.ConsumedOffset, consumedOffset.OldestOffset, consumedOffset.NewestOffset)
 							}
 							beforeChanged := consumedOffset.ConsumedOffset
@@ -325,13 +325,13 @@ func runCommand() {
 							if afterChanged >= consumedOffset.OldestOffset && afterChanged <= consumedOffset.NewestOffset {
 								consumedOffset.ConsumedOffset = afterChanged
 							} else if afterChanged < consumedOffset.OldestOffset {
-								common.Warning("The calculated offset < oldestOffset, use the oldest offset directly. ConsumedOffset: %s, OldestOffset: %s, NewestOffset: %s",
-									consumedOffset.ConsumedOffset, consumedOffset.OldestOffset, consumedOffset.NewestOffset)
 								consumedOffset.ConsumedOffset = consumedOffset.OldestOffset
-							} else {
-								common.Warning("The calculated offset < NewestOffset, use the newest offset directly. ConsumedOffset: %s, OldestOffset: %s, NewestOffset: %s",
-									consumedOffset.ConsumedOffset, consumedOffset.OldestOffset, consumedOffset.NewestOffset)
+								common.Warning("The calculated offset(%v) < oldestOffset(%v) and used oldest offset.",
+									afterChanged, consumedOffset.OldestOffset)
+							} else if afterChanged > consumedOffset.NewestOffset {
 								consumedOffset.ConsumedOffset = consumedOffset.NewestOffset
+								common.Warning("The calculated offset(%v) > newestOffset(%v) and used newest offset.",
+									afterChanged, consumedOffset.NewestOffset)
 							}
 							consumedOffset.Lag = int64(math.Abs(float64(consumedOffset.NewestOffset - afterChanged)))
 							partitions[partition] = consumedOffset

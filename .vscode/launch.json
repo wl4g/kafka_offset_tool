@@ -15,7 +15,7 @@
             //"args": ["get-topic", "--brokers", "127.0.0.1:9092", "--zkServers", "127.0.0.1:2181", "--filter", "*"]
             //"args": ["get-offset", "--brokers", "127.0.0.1:9092", "--zkServers", "127.0.0.1:2181", "--groupFilter", "repair1", "--topicFilter", "safeclound_ammeter"]
             //"args": ["set-offset", "--brokers", "localhost:9092", "-i", "${fileDirname}/../offset.json"]
-            "args": ["calc-offset", "-i", "${env:HOME}/Downloads/offset.json", "-o", "${env:HOME}/Downloads/offset2.json", "-I", "0.999"]
+            "args": ["calc-offset", "-i", "${env:HOME}/Downloads/offset.json", "-o", "${env:HOME}/Downloads/offset2.json", "-I", "-0.1"]
         }
     ]
 }
