@@ -331,7 +331,7 @@ func runCommand() {
 						for _, partition := range partitionNumsOrdered {
 							consumedOffset := partitions[int32(partition)]
 							if !(consumedOffset.ConsumedOffset >= consumedOffset.OldestOffset && consumedOffset.ConsumedOffset <= consumedOffset.NewestOffset && consumedOffset.OldestOffset >= -1) {
-								common.Warning("Unable calculate offsets of group: %s, topic: %s, partition: %v, consumed: %v, old: %v, new: %v",
+								common.Warning("Unable calculate offsets of %s/%s/%v, consumed: %v, old: %v, new: %v",
 									group, topic, partition, consumedOffset.ConsumedOffset, consumedOffset.OldestOffset, consumedOffset.NewestOffset)
 								continue
 							}
@@ -342,17 +342,17 @@ func runCommand() {
 								consumedOffset.ConsumedOffset = afterChanged
 							} else if afterChanged < consumedOffset.OldestOffset {
 								consumedOffset.ConsumedOffset = consumedOffset.OldestOffset
-								common.Warning("The calculated group: %s, topic: %s, partition: %v, offset(%v) < oldestOffset(%v) and used oldest offset.",
+								common.Warning("%s/%s/%v, because offset(%v) < oldestOffset(%v) and used oldest offset.",
 									group, topic, partition, afterChanged, consumedOffset.OldestOffset)
 							} else if afterChanged > consumedOffset.NewestOffset {
 								consumedOffset.ConsumedOffset = consumedOffset.NewestOffset
-								common.Warning("The calculated group: %s, topic: %s, partition: %v, offset(%v) > newestOffset(%v) and used newest offset.",
+								common.Warning("%s/%s/%v, because offset(%v) > newestOffset(%v) and used newest offset.",
 									group, topic, partition, afterChanged, consumedOffset.NewestOffset)
 							}
 							consumedOffset.Lag = int64(math.Abs(float64(consumedOffset.NewestOffset - afterChanged)))
 							partitions[int32(partition)] = consumedOffset
-							log.Printf("Calculated to group: %s, topic: %s, partition: %v, offset: %v => %v",
-								group, topic, partition, beforeChanged, afterChanged)
+							log.Printf("Set to %s/%s/%v, offset: %v => %v",
+								group, topic, partition, beforeChanged, consumedOffset.ConsumedOffset)
 						}
 					}
 				}
