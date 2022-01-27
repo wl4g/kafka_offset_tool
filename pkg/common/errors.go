@@ -70,7 +70,11 @@ func ErrorExit(err error, errMsgFormat string, args ...interface{}) {
 	if kfDebug {
 		log.Panicf(errMsg, err)
 	} else {
-		log.Printf(errMsg + " caused by: " + err.Error())
+		if err != nil {
+			log.Printf(errMsg + " caused by: " + err.Error())
+		} else {
+			log.Printf(errMsg)
+		}
 	}
 	os.Exit(2)
 }

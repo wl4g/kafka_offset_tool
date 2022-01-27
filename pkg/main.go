@@ -334,9 +334,8 @@ func runCommand() {
 						for _, partition := range partitionNumsOrdered {
 							consumedOffset := partitions[int32(partition)]
 							if !(consumedOffset.ConsumedOffset >= consumedOffset.OldestOffset && consumedOffset.ConsumedOffset <= consumedOffset.NewestOffset && consumedOffset.OldestOffset >= -1) {
-								common.Warning("Unable calculate offsets of %s/%s/%v, consumed: %v, old: %v, new: %v",
+								common.Warning("Invalid offsets of %s/%s/%v, consumed: %v, old: %v, new: %v",
 									group, topic, partition, consumedOffset.ConsumedOffset, consumedOffset.OldestOffset, consumedOffset.NewestOffset)
-								continue
 							}
 							beforeChanged := consumedOffset.ConsumedOffset
 							logSize := math.Abs(float64(consumedOffset.NewestOffset - consumedOffset.OldestOffset))
