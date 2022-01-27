@@ -342,12 +342,12 @@ func runCommand() {
 								consumedOffset.ConsumedOffset = afterChanged
 							} else if afterChanged < consumedOffset.OldestOffset {
 								consumedOffset.ConsumedOffset = consumedOffset.OldestOffset
-								common.Warning("The calculated offset(%v) < oldestOffset(%v) and used oldest offset.",
-									afterChanged, consumedOffset.OldestOffset)
+								common.Warning("The calculated group: %s, topic: %s, partition: %v, offset(%v) < oldestOffset(%v) and used oldest offset.",
+									group, topic, partition, afterChanged, consumedOffset.OldestOffset)
 							} else if afterChanged > consumedOffset.NewestOffset {
 								consumedOffset.ConsumedOffset = consumedOffset.NewestOffset
-								common.Warning("The calculated offset(%v) > newestOffset(%v) and used newest offset.",
-									afterChanged, consumedOffset.NewestOffset)
+								common.Warning("The calculated group: %s, topic: %s, partition: %v, offset(%v) > newestOffset(%v) and used newest offset.",
+									group, topic, partition, afterChanged, consumedOffset.NewestOffset)
 							}
 							consumedOffset.Lag = int64(math.Abs(float64(consumedOffset.NewestOffset - afterChanged)))
 							partitions[int32(partition)] = consumedOffset
