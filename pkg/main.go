@@ -304,15 +304,15 @@ func runCommand() {
 				return nil
 			},
 			Action: func(c *cli.Context) error {
-				input := make(GroupConsumedOffsets)
-				common.ParseJSONFromFile(option.inputFile, &input)
+				inputOffsets := make(GroupConsumedOffsets)
+				common.ParseJSONFromFile(option.inputFile, &inputOffsets)
 
 				// calculation offset
 				incr, err := strconv.ParseFloat(option.increment, 10)
 				if err != nil {
 					common.ErrorExit(err, "Failed to calculation offsets.")
 				}
-				for group, topics := range input {
+				for group, topics := range inputOffsets {
 					for topic, partitions := range topics {
 						for partition, consumedOffset := range partitions {
 							if !(consumedOffset.ConsumedOffset >= consumedOffset.OldestOffset && consumedOffset.ConsumedOffset <= consumedOffset.NewestOffset && consumedOffset.OldestOffset >= -1) {
@@ -342,7 +342,7 @@ func runCommand() {
 				}
 
 				// Output new consumerd offsets file
-				data := []byte(common.ToJSONString(input, true))
+				data := []byte(common.ToJSONString(inputOffsets, true))
 				if err := common.WriteFile(option.outputFile, data, false); err != nil {
 					common.ErrorExit(err, "Failed to export consumed offset to '%s'", option.outputFile)
 				}
