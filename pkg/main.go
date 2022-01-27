@@ -313,18 +313,22 @@ func runCommand() {
 				if err != nil {
 					common.ErrorExit(err, "Failed to calculation offsets.")
 				}
-				groups, err1 := common.ToOrderedKeys(inputOffsets)
+				groupNamesOrdered, err1 := common.ToOrderedKeys(inputOffsets)
 				if err1 != nil {
 					common.FatalExit(err1.Error())
 				}
-				for _, group := range groups {
-					topics := inputOffsets[group]
-					for topic, partitions := range topics {
-						partitionsOrdered, err2 := common.ToOrderedKeysInt(partitions)
-						if err2 != nil {
-							common.FatalExit(err2.Error())
+				for _, group := range groupNamesOrdered {
+					topicNamesOrdered, err2 := common.ToOrderedKeys(inputOffsets[group])
+					if err2 != nil {
+						common.FatalExit(err2.Error())
+					}
+					for _, topic := range topicNamesOrdered {
+						partitions := inputOffsets[group][topic]
+						partitionNumsOrdered, err3 := common.ToOrderedKeysInt(partitions)
+						if err3 != nil {
+							common.FatalExit(err3.Error())
 						}
-						for _, partition := range partitionsOrdered {
+						for _, partition := range partitionNumsOrdered {
 							consumedOffset := partitions[int32(partition)]
 							if !(consumedOffset.ConsumedOffset >= consumedOffset.OldestOffset && consumedOffset.ConsumedOffset <= consumedOffset.NewestOffset && consumedOffset.OldestOffset >= -1) {
 								common.Warning("Unable calculate offsets of group: %s, topic: %s, partition: %v, consumed: %v, old: %v, new: %v",
