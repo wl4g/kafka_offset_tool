@@ -59,7 +59,10 @@ func setOffset() {
  */
 func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId string, setTopic string, setPartition int64, setOffset int64) {
 	// Check is valid?
-	valid := false
+	var (
+		valid       = false
+		forEarliest = false
+	)
 	for groupId, topicPartitionOffsets := range fetchedGroupConsumedOffsets {
 		if groupId == setGroupId {
 			for topic, partitionOffsets := range topicPartitionOffsets {
@@ -68,6 +71,7 @@ func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId st
 						if int64(partition) == setPartition {
 							if setOffset >= consumedOffset.OldestOffset && setOffset <= consumedOffset.NewestOffset {
 								valid = true
+								forEarliest = (setOffset < consumedOffset.ConsumedOffset)
 							} else {
 								common.Warning("Cannot set offsets, must be between %d and %d of setting parameters groupId: %s, topic: %s, partition: %d, offset: %d",
 									consumedOffset.OldestOffset, consumedOffset.NewestOffset, setGroupId, setTopic, setPartition, setOffset)
@@ -92,9 +96,9 @@ func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId st
 		}
 		// Do reset specific offset.
 		if isKafkaDirectConsumerGroup {
-			doSetKafkaOffset(setGroupId, setTopic, setPartition, setOffset)
+			doSetKafkaOffset(setGroupId, setTopic, setPartition, setOffset, forEarliest)
 		} else {
-			doSetZookeeperOffset(setGroupId, setTopic, setPartition, setOffset)
+			doSetZookeeperOffset(setGroupId, setTopic, setPartition, setOffset, forEarliest)
 		}
 	} else {
 		common.Warning("Failed to set offset, because no matchs setting group: %s, topic: %s, partition: %d",
@@ -106,7 +110,7 @@ func doSetOffset(fetchedGroupConsumedOffsets GroupConsumedOffsets, setGroupId st
  * Reset(kafka) topic group partitions offset.
  * See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
  */
-func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, setOffset int64) {
+func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, setOffset int64, forEarliest bool) {
 	// Handle reset offset.
 	var offsetManager, err1 = sarama.NewOffsetManagerFromClient(setGroupId, option.client)
 	var pom, err2 = offsetManager.ManagePartition(setTopic, int32(setPartition))
@@ -118,9 +122,13 @@ func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, se
 		return
 	}
 
-	// Do reset offset.
-	log.Printf("Resetting offset via kafka direct...")
-	pom.ResetOffset(int64(setOffset), "modified_meta")
+	// [CORE]: Do reset offset, The PartitionOffsetManager#ResetOffset() method can only be reset to an offset earlier than the currently
+	// consumed offset, and the PartitionOffsetManager#MarkOffset() method can be marked to be newer than the currently consumed offset
+	if forEarliest {
+		pom.ResetOffset(setOffset, "modified_meta")
+	} else {
+		pom.MarkOffset(setOffset, "modified_meta")
+	}
 
 	log.Printf("Seted kafka direct offset(%d) for group(%s), topic(%s), partition(%d) completed!",
 		setOffset, setTopic, setGroupId, setPartition)
@@ -130,7 +138,7 @@ func doSetKafkaOffset(setGroupId string, setTopic string, setPartition int64, se
  * Reset(zookeeper) topic group partitions offset.
  * See: https://github.com/Shopify/sarama/blob/master/offset_manager_test.go#L228
  */
-func doSetZookeeperOffset(setGroupId string, setTopic string, setPartition int64, setOffset int64) {
+func doSetZookeeperOffset(setGroupId string, setTopic string, setPartition int64, setOffset int64, forEarliest bool) {
 	log.Printf("Preparing set zk offset range of group: %s, topic: %s, partition: %d, offset: %d ...",
 		setGroupId, setTopic, setPartition, setOffset)
 
